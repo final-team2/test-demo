@@ -355,7 +355,7 @@ export function LandingPage() {
               style={{ background: "linear-gradient(135deg, #6C63FF 0%, #8B5CF6 100%)" }}
             >
               <div className="absolute right-4 top-0 bottom-0 flex items-center opacity-10">
-                <BrainCircuit className="w-32 h-32" />
+                <span className="text-white font-black tracking-tighter leading-none" style={{ fontSize: "130px" }}>DR</span>
               </div>
               <div className="relative">
                 <div className="inline-flex items-center gap-1.5 bg-white/20 text-white text-xs px-2.5 py-1 rounded-full mb-2">
@@ -578,8 +578,21 @@ export function LandingPage() {
           <aside className="hidden xl:block w-56 shrink-0 space-y-4">
             {/* CTA card */}
             <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-              <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center mx-auto mb-3">
-                <BrainCircuit className="w-6 h-6 text-indigo-600" />
+              <div
+                className="relative w-12 h-12 rounded-[14px] mx-auto mb-3 overflow-hidden"
+                style={{
+                  background: "linear-gradient(135deg,#7B6CFF 0%,#6C63FF 50%,#8B5CF6 100%)",
+                  boxShadow: "0 8px 20px -4px rgba(108,99,255,0.5)",
+                }}
+              >
+                {/* 상단 광택 하이라이트 */}
+                <div
+                  className="absolute inset-x-0 top-0 h-1/2 pointer-events-none"
+                  style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0.28), transparent)" }}
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-white leading-none" style={{ fontSize: "20px", fontWeight: 700, letterSpacing: "-0.03em" }}>DR</span>
+                </div>
               </div>
               <p className="text-sm font-semibold text-gray-800 mb-1">지금 무료로 시작</p>
               <p className="text-xs text-gray-500 mb-3">가입하고 AI 면접<br />무료 체험 1회 제공</p>
