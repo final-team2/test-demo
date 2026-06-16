@@ -150,8 +150,8 @@ export function Root() {
                     {/* Dropdown Menu */}
                     {dropdown && isDropdownOpen && (
                       <div
-                        className="absolute top-full left-0 mt-1 w-48 rounded-lg border border-border bg-white overflow-hidden z-50 py-1"
-                        style={{ boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)" }}
+                        className="absolute top-full left-0 w-48 rounded-lg border border-border bg-white overflow-hidden z-50 py-1"
+                        style={{ boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)", marginTop: "-2px", paddingTop: "6px" }}
                       >
                         {dropdown.map((item, idx) => {
                           if (item.separator) {
