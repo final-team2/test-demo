@@ -59,9 +59,6 @@ const NAV_MAIN = [
     href: "/community",
     icon: Users,
     dropdown: [
-      { label: "채팅방", href: "/community?tab=chat" },
-      { label: "면접 후기", href: "/community?tab=reviews" },
-      { label: "스터디 모집", href: "/community?tab=study" },
       { label: "질문 아카이브", href: "/community?tab=qna" },
       { label: "자유 게시판", href: "/community?tab=free" },
     ]
