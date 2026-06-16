@@ -346,30 +346,15 @@ export function EducationPage() {
         ))}
       </div>
 
-      {/* Coding test entry */}
-      <div
-        onClick={() => navigate("/education/coding-test")}
-        className="rounded-2xl border border-gray-200 bg-gradient-to-r from-gray-900 to-gray-800 p-5 mb-8 cursor-pointer hover:shadow-lg transition-shadow group"
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-              <Terminal className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <div className="text-white font-semibold">코딩 테스트 연습</div>
-              <div className="text-gray-400 text-sm">알고리즘 문제풀이 · 6개 문제</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 text-indigo-400 group-hover:text-indigo-300 transition-colors">
-            <span className="text-sm font-medium">시작하기</span>
-            <ChevronRight className="w-4 h-4" />
-          </div>
-        </div>
+      {/* ══════════ 퀴즈칸 ══════════ */}
+      <div className="flex items-center gap-2 mb-4">
+        <Sparkles className="w-5 h-5 text-primary" />
+        <h2 className="text-xl font-bold text-foreground">AI 퀴즈</h2>
+        <span className="text-xs text-muted-foreground ml-1 hidden sm:inline">오답 분석 기반 약점 공략 · 추천 주제</span>
       </div>
 
       {/* Weak concepts */}
-      <div className="rounded-2xl border border-orange-200 bg-orange-50 p-5 mb-8">
+      <div className="rounded-2xl border border-orange-200 bg-orange-50 p-5 mb-4">
         <div className="flex items-center gap-2 mb-4">
           <BarChart3 className="w-4 h-4 text-orange-500" />
           <span className="font-semibold text-foreground text-sm">취약 개념 반복 추천</span>
@@ -392,7 +377,7 @@ export function EducationPage() {
       </div>
 
       {/* AI Quiz topic suggestions */}
-      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 mb-8">
+      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 mb-10">
         <div className="flex items-center gap-2 mb-3">
           <Sparkles className="w-4 h-4 text-primary" />
           <span className="font-semibold text-foreground text-sm">오늘의 AI 추천 퀴즈 주제</span>
@@ -404,6 +389,35 @@ export function EducationPage() {
               {t.label}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* ══════════ 교육칸 ══════════ */}
+      <div className="flex items-center gap-2 mb-4">
+        <BookOpen className="w-5 h-5 text-primary" />
+        <h2 className="text-xl font-bold text-foreground">교육 · 강의</h2>
+        <span className="text-xs text-muted-foreground ml-1 hidden sm:inline">맞춤 강의와 코딩 테스트로 실력 향상</span>
+      </div>
+
+      {/* Coding test entry */}
+      <div
+        onClick={() => navigate("/education/coding-test")}
+        className="rounded-2xl border border-gray-200 bg-gradient-to-r from-gray-900 to-gray-800 p-5 mb-6 cursor-pointer hover:shadow-lg transition-shadow group"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+              <Terminal className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <div className="text-white font-semibold">코딩 테스트 연습</div>
+              <div className="text-gray-400 text-sm">알고리즘 문제풀이 · 6개 문제</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-indigo-400 group-hover:text-indigo-300 transition-colors">
+            <span className="text-sm font-medium">시작하기</span>
+            <ChevronRight className="w-4 h-4" />
+          </div>
         </div>
       </div>
 
