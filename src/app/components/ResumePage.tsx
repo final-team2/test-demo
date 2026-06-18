@@ -3,7 +3,7 @@ import {
   Sparkles, Plus, Trash2, History, Shield, CheckCircle2,
   Eye, Download, X, Save, RotateCcw, ChevronRight,
   FileText, User, GraduationCap, Briefcase, Code2, AlignLeft,
-  Clock, AlertCircle, Copy, Check
+  Clock, AlertCircle, Copy, Check, Award
 } from "lucide-react";
 import jsPDF from "jspdf";
 
@@ -14,12 +14,16 @@ interface Education {
 interface Career {
   company: string; role: string; period: string; desc: string;
 }
+interface Certification {
+  name: string; issuer: string; date: string;
+}
 interface ResumeData {
   id: string;
   name: string;
   basic: { name: string; email: string; phone: string; address: string; github: string; portfolio: string };
   educations: Education[];
   careers: Career[];
+  certifications: Certification[];
   skills: string[];
   coverText: string;
 }
@@ -38,6 +42,7 @@ const INITIAL_RESUME: ResumeData = {
   basic: { name: "김지수", email: "jisu@example.com", phone: "010-1234-5678", address: "서울 강남구", github: "github.com/jisu-kim", portfolio: "" },
   educations: [{ school: "한국대학교", major: "컴퓨터공학과", grade: "3.8/4.5", period: "2020.03 ~ 2026.02" }],
   careers: [{ company: "(주)스타트업A", role: "프론트엔드 인턴", period: "2025.07 ~ 2025.12", desc: "React 기반 대시보드 개발 및 유지보수" }],
+  certifications: [{ name: "정보처리기사", issuer: "한국산업인력공단", date: "2025.08" }],
   skills: ["React", "TypeScript", "Next.js", "Tailwind CSS", "Node.js"],
   coverText: "React와 TypeScript를 주력으로 사용하며, 사용자 경험을 최우선으로 생각하는 프론트엔드 개발자입니다.",
 };
@@ -74,12 +79,13 @@ const AI_SUGGESTIONS: Record<string, (data: ResumeData) => Partial<ResumeData>> 
   }),
 };
 
-type Section = "basic" | "edu" | "career" | "skills" | "cover";
+type Section = "basic" | "edu" | "career" | "cert" | "skills" | "cover";
 
 const SECTIONS: { id: Section; label: string; icon: React.ElementType }[] = [
   { id: "basic", label: "기본 정보", icon: User },
   { id: "edu", label: "학력", icon: GraduationCap },
   { id: "career", label: "경력", icon: Briefcase },
+  { id: "cert", label: "자격증", icon: Award },
   { id: "skills", label: "스킬", icon: Code2 },
   { id: "cover", label: "자기소개서", icon: AlignLeft },
 ];
@@ -153,6 +159,16 @@ function generatePDF(resume: ResumeData) {
       }
       y += 1;
     });
+  }
+
+  // Certifications
+  if (resume.certifications.length > 0) {
+    section("자격증");
+    resume.certifications.forEach(c => {
+      const parts = [c.name, c.issuer, c.date].filter(Boolean);
+      line(parts.join("  ·  "), 9, false, "#333");
+    });
+    y += 2;
   }
 
   // Skills
@@ -342,7 +358,7 @@ export function ResumePage() {
       label,
       date: now.toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" }).replace(/\. /g, "."),
       desc: "수동 저장",
-      data: { ...resume, educations: [...resume.educations], careers: [...resume.careers], skills: [...resume.skills] },
+      data: { ...resume, educations: [...resume.educations], careers: [...resume.careers], certifications: [...resume.certifications], skills: [...resume.skills] },
     };
     setVersions(v => ({ ...v, [activeId]: [...(v[activeId] ?? []), ver] }));
     setSavedMsg(true);
@@ -354,7 +370,7 @@ export function ResumePage() {
     const nr: ResumeData = {
       id, name: "새 이력서",
       basic: { name: "", email: "", phone: "", address: "", github: "", portfolio: "" },
-      educations: [], careers: [], skills: [], coverText: "",
+      educations: [], careers: [], certifications: [], skills: [], coverText: "",
     };
     setResumes(r => [...r, nr]);
     setVersions(v => ({ ...v, [id]: [] }));
@@ -623,6 +639,40 @@ export function ResumePage() {
             </div>
           )}
 
+          {/* Certifications */}
+          {activeSection === "cert" && (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold text-foreground hidden lg:block">자격증</h2>
+                <button onClick={() => updateResume({ certifications: [...resume.certifications, { name: "", issuer: "", date: "" }] })}
+                  className="flex items-center gap-1 text-sm text-primary hover:text-indigo-600"><Plus className="w-4 h-4" />추가</button>
+              </div>
+              {resume.certifications.length === 0 && (
+                <p className="text-sm text-muted-foreground py-4 text-center">보유한 자격증을 추가해주세요.</p>
+              )}
+              {resume.certifications.map((cert, i) => (
+                <div key={i} className="rounded-xl bg-secondary border border-border p-4 flex flex-col gap-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    {[["name", "자격증명"], ["issuer", "발급 기관"], ["date", "취득일 (예: 2025.08)"]].map(([k, l]) => (
+                      <div key={k} className={k === "name" ? "col-span-2" : ""}>
+                        <label className="text-xs text-muted-foreground block mb-1">{l}</label>
+                        <input
+                          value={(cert as any)[k]}
+                          onChange={e => updateResume({ certifications: resume.certifications.map((x, j) => j === i ? { ...x, [k]: e.target.value } : x) })}
+                          className="w-full px-3 py-2 rounded-lg bg-card border border-border text-sm text-foreground focus:outline-none focus:border-primary/60"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={() => updateResume({ certifications: resume.certifications.filter((_, j) => j !== i) })}
+                    className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 self-start">
+                    <Trash2 className="w-3.5 h-3.5" />삭제
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Skills */}
           {activeSection === "skills" && (
             <div className="flex flex-col gap-4">
@@ -767,6 +817,14 @@ export function ResumePage() {
                   <h4 className="font-medium text-foreground mb-1 text-xs uppercase text-muted-foreground tracking-wider">학력</h4>
                   {previewVersion.data.educations.map((e, i) => (
                     <div key={i} className="text-foreground">{e.school} · {e.major} ({e.period})</div>
+                  ))}
+                </div>
+              )}
+              {previewVersion.data.certifications?.length > 0 && (
+                <div>
+                  <h4 className="font-medium text-foreground mb-1 text-xs uppercase text-muted-foreground tracking-wider">자격증</h4>
+                  {previewVersion.data.certifications.map((c, i) => (
+                    <div key={i} className="text-foreground">{[c.name, c.issuer, c.date].filter(Boolean).join(" · ")}</div>
                   ))}
                 </div>
               )}

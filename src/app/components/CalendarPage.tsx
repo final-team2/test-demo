@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { ChevronLeft, ChevronRight, Bell, BellOff, MapPin, Clock, ChevronRight as Arrow, AlertTriangle, Info, GraduationCap } from "lucide-react";
 
 const JOB_EVENTS = [
@@ -141,7 +141,8 @@ function buildWeekSlots(
 export function CalendarPage() {
   const navigate = useNavigate();
   const now = new Date();
-  const [calType, setCalType] = useState<"job" | "edu">("job");
+  const [searchParams] = useSearchParams();
+  const calType: "job" | "edu" = searchParams.get("type") === "edu" ? "edu" : "job";
   const events = calType === "edu" ? EDU_EVENTS : JOB_EVENTS;
   const [year, setYear] = useState(2026);
   const [month, setMonth] = useState(5);
@@ -200,19 +201,9 @@ export function CalendarPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">{calType === "edu" ? "교육 캘린더" : "공고 캘린더"}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{calType === "edu" ? "수강 중인 강의 일정을 한눈에 관리하세요" : "찜한 공고의 시작일~마감일을 한눈에 관리하세요"}</p>
-        </div>
-        <div className="flex rounded-xl bg-secondary p-1 shrink-0">
-          {([["job", "공고 캘린더"], ["edu", "교육 캘린더"]] as const).map(([t, label]) => (
-            <button key={t} onClick={() => { setCalType(t); setSelected(null); }}
-              className={`px-4 py-2 rounded-lg text-sm transition-all ${calType === t ? "bg-card text-foreground shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"}`}>
-              {label}
-            </button>
-          ))}
-        </div>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-foreground">{calType === "edu" ? "교육 캘린더" : "공고 캘린더"}</h1>
+        <p className="text-sm text-muted-foreground mt-1">{calType === "edu" ? "수강 중인 강의 일정을 한눈에 관리하세요" : "찜한 공고의 시작일~마감일을 한눈에 관리하세요"}</p>
       </div>
 
       {/* D-1 / D-3 Alert banner */}

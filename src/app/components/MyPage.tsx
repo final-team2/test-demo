@@ -3,7 +3,8 @@ import { useLocation, useNavigate } from "react-router";
 import {
   Eye, EyeOff, CheckCircle2, CreditCard, History, FileText, User,
   ChevronDown, ChevronUp, Briefcase, Clock, ChevronRight,
-  Camera, TrendingUp, AlertCircle, RotateCcw, X
+  Camera, TrendingUp, AlertCircle, RotateCcw, X,
+  Plus, GraduationCap, Award, Target
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -83,7 +84,16 @@ const APPLICATION_HISTORY = [
   },
 ];
 
+// 교육센터 학습 진행도 mock (EducationPage / CalendarPage와 동일 값)
+const LEARNING_COURSES = [
+  { title: "알고리즘 기초 완성", done: 28, total: 42, color: "#6366F1" },
+  { title: "React & TypeScript 심화", done: 29, total: 36, color: "#F59E0B" },
+  { title: "네트워크 & HTTP", done: 11, total: 24, color: "#3B82F6" },
+  { title: "Spring Boot & JPA", done: 5, total: 30, color: "#EC4899" },
+];
+
 const TABS = [
+  { id: "evaluation", label: "학습 종합 평가", icon: Award },
   { id: "career", label: "맞춤 진로 변경", icon: TrendingUp },
   { id: "profile", label: "기본 정보", icon: User },
   { id: "applications", label: "지원 내역", icon: Briefcase },
@@ -94,7 +104,6 @@ const TABS = [
 
 const CAREER_ROLES = ["프론트엔드", "백엔드", "풀스택", "AI/ML", "DevOps", "데이터"];
 const CAREER_PURPOSES = ["실무 역량 강화", "취업 준비", "이직 준비", "기초 다지기"];
-const CAREER_CAREERS = ["신입 (0~1년)", "주니어 (1~3년)", "미들 (3~5년)", "시니어 (5년+)"];
 const CAREER_LANGS = ["JavaScript", "TypeScript", "React", "Java", "Spring", "Python", "Go", "Kotlin"];
 
 // ─── Sub-views ───────────────────────────────────────────────────────────────
@@ -655,22 +664,36 @@ function PaymentTab() {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+type Exp = { tech: string; years: number };
+
 function CareerTab() {
   const [role, setRole] = useState(CAREER_ROLES[0]);
   const [purpose, setPurpose] = useState(CAREER_PURPOSES[0]);
-  const [career, setCareer] = useState(CAREER_CAREERS[0]);
+  // 직군과 분리된 '기술별 경력' (예: React 1년, Java 3년, Python 5년)
+  const [exps, setExps] = useState<Exp[]>([
+    { tech: "React", years: 1 },
+    { tech: "Java", years: 3 },
+    { tech: "Python", years: 5 },
+  ]);
   const [langs, setLangs] = useState<string[]>(["JavaScript", "TypeScript", "React"]);
   const [saved, setSaved] = useState(false);
 
   const toggleLang = (l: string) => setLangs(p => p.includes(l) ? p.filter(x => x !== l) : [...p, l]);
+  const updateExp = (i: number, field: keyof Exp, value: string | number) =>
+    setExps(p => p.map((e, idx) => idx === i ? { ...e, [field]: value } : e));
+  const addExp = () => setExps(p => [...p, { tech: "", years: 0 }]);
+  const removeExp = (i: number) => setExps(p => p.filter((_, idx) => idx !== i));
+
   const selectCls = "w-full px-3 py-2.5 rounded-xl bg-secondary border border-border text-sm text-foreground focus:outline-none focus:border-primary/60";
+  const expSummary = exps.filter(e => e.tech.trim()).map(e => `${e.tech} ${e.years}년`).join(", ");
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6">
       <h2 className="font-semibold text-foreground mb-1">맞춤 진로 변경</h2>
       <p className="text-sm text-muted-foreground mb-5">기본 베이스 정보를 수정하면 교육·공고·면접의 AI 추천이 이 정보를 기준으로 갱신됩니다.</p>
 
-      <div className="grid sm:grid-cols-3 gap-3 mb-4">
+      {/* 직군 / 교육 목적 (각각 따로 선택) */}
+      <div className="grid sm:grid-cols-2 gap-3 mb-5">
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">취업/교육 희망 직군</label>
           <select value={role} onChange={e => setRole(e.target.value)} className={selectCls}>
@@ -683,12 +706,45 @@ function CareerTab() {
             {CAREER_PURPOSES.map(o => <option key={o}>{o}</option>)}
           </select>
         </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">직군·경력</label>
-          <select value={career} onChange={e => setCareer(e.target.value)} className={selectCls}>
-            {CAREER_CAREERS.map(o => <option key={o}>{o}</option>)}
-          </select>
+      </div>
+
+      {/* 기술별 경력 (다중 입력 · 수정/추가/삭제 가능) */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-xs text-muted-foreground block">보유 경력 (기술·연차)</label>
+          <button onClick={addExp} className="flex items-center gap-0.5 text-xs text-primary hover:underline">
+            <Plus className="w-3 h-3" />경력 추가
+          </button>
         </div>
+        <div className="flex flex-col gap-2">
+          {exps.map((e, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input
+                type="text" value={e.tech} placeholder="기술명 (예: React)"
+                onChange={ev => updateExp(i, "tech", ev.target.value)}
+                className="flex-1 px-3 py-2 rounded-xl bg-secondary border border-border text-sm text-foreground focus:outline-none focus:border-primary/60"
+              />
+              <div className="flex items-center gap-1 shrink-0">
+                <input
+                  type="number" min={0} max={40} value={e.years}
+                  onChange={ev => updateExp(i, "years", Number(ev.target.value))}
+                  className="w-16 px-2 py-2 rounded-xl bg-secondary border border-border text-sm text-foreground text-center focus:outline-none focus:border-primary/60"
+                />
+                <span className="text-sm text-muted-foreground">년</span>
+              </div>
+              <button onClick={() => removeExp(i)} title="삭제"
+                className="p-2 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors shrink-0">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+          {exps.length === 0 && (
+            <p className="text-xs text-muted-foreground py-2">‘경력 추가’를 눌러 기술별 경력을 입력하세요.</p>
+          )}
+        </div>
+        {expSummary && (
+          <p className="text-xs text-muted-foreground mt-2">입력된 경력: <span className="text-foreground">{expSummary}</span></p>
+        )}
       </div>
 
       <div className="mb-6">
@@ -714,9 +770,150 @@ function CareerTab() {
   );
 }
 
+function EvaluationTab() {
+  const navigate = useNavigate();
+
+  const learnDone = LEARNING_COURSES.reduce((s, c) => s + c.done, 0);
+  const learnTotal = LEARNING_COURSES.reduce((s, c) => s + c.total, 0);
+  const learnOverall = Math.round((learnDone / learnTotal) * 100);
+
+  const avgScore = Math.round(INTERVIEW_HISTORY.reduce((s, h) => s + h.score, 0) / INTERVIEW_HISTORY.length);
+  const avgScores = {
+    technical: Math.round(INTERVIEW_HISTORY.reduce((s, h) => s + h.scores.technical, 0) / INTERVIEW_HISTORY.length),
+    logic: Math.round(INTERVIEW_HISTORY.reduce((s, h) => s + h.scores.logic, 0) / INTERVIEW_HISTORY.length),
+    specificity: Math.round(INTERVIEW_HISTORY.reduce((s, h) => s + h.scores.specificity, 0) / INTERVIEW_HISTORY.length),
+    depth: Math.round(INTERVIEW_HISTORY.reduce((s, h) => s + h.scores.depth, 0) / INTERVIEW_HISTORY.length),
+    communication: Math.round(INTERVIEW_HISTORY.reduce((s, h) => s + h.scores.communication, 0) / INTERVIEW_HISTORY.length),
+  };
+  const radarData = [
+    { subject: "기술정확성", score: avgScores.technical },
+    { subject: "논리구조", score: avgScores.logic },
+    { subject: "구체성", score: avgScores.specificity },
+    { subject: "심화이해", score: avgScores.depth },
+    { subject: "커뮤니케이션", score: avgScores.communication },
+  ];
+  const weakItems = Object.entries(avgScores)
+    .sort((a, b) => a[1] - b[1])
+    .slice(0, 2)
+    .map(([key, val]) => ({
+      key, val,
+      label: key === "technical" ? "기술정확성" : key === "logic" ? "논리구조" : key === "specificity" ? "구체성" : key === "depth" ? "심화이해" : "커뮤니케이션",
+      tip: key === "technical" ? "기술 면접 문제 풀이 및 CS 개념 정리를 늘려보세요."
+        : key === "logic" ? "답변 시 서론-본론-결론 구조로 정리하는 연습을 하세요."
+        : key === "specificity" ? "추상적 설명 대신 수치·코드 예시를 포함해 구체적으로 말하세요."
+        : key === "depth" ? "질문의 배경 원리까지 설명하는 심화 학습을 진행해보세요."
+        : "필러워드를 줄이고 명확한 단어 선택을 연습해보세요.",
+    }));
+
+  const grade = avgScore >= 85 ? "A" : avgScore >= 75 ? "B+" : avgScore >= 70 ? "B" : avgScore >= 60 ? "C+" : "C";
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* 종합 평가 헤더 */}
+      <div className="rounded-2xl border border-border p-6" style={{ background: "linear-gradient(135deg,#F4F3FF 0%,#EEF0FF 100%)" }}>
+        <div className="flex items-center gap-2 mb-4">
+          <Award className="w-5 h-5 text-primary" />
+          <h2 className="font-semibold text-foreground">학습 종합 평가</h2>
+          <span className="text-xs text-muted-foreground ml-1">면접·학습 데이터를 종합한 현재 상태</span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="rounded-xl bg-white/70 border border-border p-4">
+            <div className="text-xs text-muted-foreground mb-1">면접 종합 점수</div>
+            <div className="flex items-end gap-1.5">
+              <span className="text-2xl font-bold text-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>{avgScore}</span>
+              <span className="text-sm text-primary mb-0.5 font-medium">{grade}</span>
+            </div>
+          </div>
+          <div className="rounded-xl bg-white/70 border border-border p-4">
+            <div className="text-xs text-muted-foreground mb-1">학습 진행률</div>
+            <div className="text-2xl font-bold text-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>{learnOverall}%</div>
+          </div>
+          <div className="rounded-xl bg-white/70 border border-border p-4 col-span-2 sm:col-span-1">
+            <div className="text-xs text-muted-foreground mb-1">완료 강의</div>
+            <div className="text-2xl font-bold text-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>
+              {learnDone}<span className="text-sm text-muted-foreground font-normal">/{learnTotal}강</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 학습 진행도 + 역량 레이더 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <GraduationCap className="w-4 h-4 text-primary" />
+              <h3 className="font-semibold text-foreground text-sm">학습 진행도</h3>
+            </div>
+            <button onClick={() => navigate("/education")} className="text-xs text-primary hover:underline flex items-center gap-0.5">
+              교육센터 <ChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+          <div className="flex flex-col gap-3">
+            {LEARNING_COURSES.map(c => {
+              const pct = Math.round((c.done / c.total) * 100);
+              return (
+                <div key={c.title}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-foreground truncate">{c.title}</span>
+                    <span className="text-[11px] text-muted-foreground shrink-0 ml-2">{c.done}/{c.total}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: c.color }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <Target className="w-4 h-4 text-primary" />
+            <h3 className="font-semibold text-foreground text-sm">역량 레이더</h3>
+          </div>
+          <p className="text-xs text-muted-foreground mb-2">누적 면접 평균 5항목</p>
+          <ResponsiveContainer width="100%" height={200}>
+            <RadarChart data={radarData}>
+              <PolarGrid stroke="rgba(0,0,0,0.08)" />
+              <PolarAngleAxis dataKey="subject" tick={{ fill: "#8B9CB8", fontSize: 9 }} />
+              <Radar name="평균" dataKey="score" stroke="#6366F1" fill="#6366F1" fillOpacity={0.2} strokeWidth={2} />
+            </RadarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* 취약 항목 */}
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <AlertCircle className="w-4 h-4 text-yellow-400" />
+          <h3 className="font-semibold text-foreground">취약 항목 분석</h3>
+          <span className="text-xs text-muted-foreground ml-1">누적 데이터 기반 자동 분석</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {weakItems.map(({ label, val, tip }) => (
+            <div key={label} className="rounded-xl bg-yellow-500/5 border border-yellow-500/20 p-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-medium text-foreground">{label}</span>
+                <span className="text-sm text-yellow-500" style={{ fontFamily: "'DM Mono', monospace" }}>{val}점</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-secondary mb-2">
+                <div className="h-1.5 rounded-full bg-yellow-400" style={{ width: `${val}%` }} />
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">{tip}</p>
+            </div>
+          ))}
+        </div>
+        <button onClick={() => navigate("/interview/setup")} className="mt-4 text-xs text-primary hover:underline flex items-center gap-0.5">
+          취약 항목 집중 훈련 시작 <ChevronRight className="w-3 h-3" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function MyPage() {
   const location = useLocation();
-  const [tab, setTab] = useState("profile");
+  const [tab, setTab] = useState("evaluation");
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -747,6 +944,12 @@ export function MyPage() {
         </div>
 
         <div className="lg:col-span-3">
+          {tab === "evaluation" && (
+            <div className="flex flex-col gap-6">
+              <EvaluationTab />
+              <CareerTab />
+            </div>
+          )}
           {tab === "career" && <CareerTab />}
           {tab === "profile" && <ProfileTab />}
           {tab === "applications" && <ApplicationsTab />}

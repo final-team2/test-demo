@@ -403,16 +403,27 @@ export function EducationPage() {
         <span className="text-xs text-muted-foreground ml-1 hidden sm:inline">맞춤 강의와 코딩 테스트로 실력 향상</span>
       </div>
 
-      {/* Coding test entry (부수 기능으로 축소) */}
-      <button
+      {/* Coding test entry */}
+      <div
         onClick={() => navigate("/education/coding-test")}
-        className="inline-flex items-center gap-2 mb-6 px-3.5 py-2 rounded-lg border border-border bg-secondary text-sm text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors group"
+        className="rounded-2xl border border-gray-200 bg-gradient-to-r from-gray-900 to-gray-800 p-5 mb-6 cursor-pointer hover:shadow-lg transition-shadow group"
       >
-        <Terminal className="w-4 h-4" />
-        코딩 테스트 연습
-        <span className="text-xs text-gray-400">부가 기능 · 6문제</span>
-        <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-      </button>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+              <Terminal className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <div className="text-white font-semibold">코딩 테스트 연습</div>
+              <div className="text-gray-400 text-sm">알고리즘 문제풀이 · 6개 문제</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-indigo-400 group-hover:text-indigo-300 transition-colors">
+            <span className="text-sm font-medium">시작하기</span>
+            <ChevronRight className="w-4 h-4" />
+          </div>
+        </div>
+      </div>
 
       {/* Category filter */}
       <div className="flex gap-2 mb-6 overflow-x-auto pb-1">

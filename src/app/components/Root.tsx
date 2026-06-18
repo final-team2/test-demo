@@ -37,6 +37,10 @@ const NAV_MAIN = [
     label: "캘린더",
     href: "/calendar",
     icon: Calendar,
+    dropdown: [
+      { label: "교육 캘린더", href: "/calendar?type=edu" },
+      { label: "공고 캘린더", href: "/calendar?type=job" },
+    ]
   },
   {
     label: "이력서",
