@@ -92,7 +92,7 @@ export function Root() {
 
   const unreadCount = NOTIFICATIONS.filter(n => n.unread).length;
 
-  if (isInterview || isAdminPage) return <Outlet />;
+  if (isInterview || isAdminPage) return (<><Outlet /><ChatbotWidget /></>);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -378,7 +378,7 @@ export function Root() {
         <Outlet />
       </main>
 
-      {isLoggedIn && <ChatbotWidget />}
+      <ChatbotWidget />
     </div>
   );
 }

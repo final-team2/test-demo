@@ -40,7 +40,7 @@ function groupByDate(sessions: ChatSession[]): Record<string, ChatSession[]> {
 const INITIAL_MESSAGES: Message[] = [
   {
     id: 0, role: "bot",
-    text: "안녕하세요! 👋 DevReady 도우미입니다.\n궁금한 것을 자유롭게 물어보거나 아래 메뉴를 선택해보세요.\n\nClaude AI가 서비스 관련 질문에 자연어로 답변해드립니다.",
+    text: "안녕하세요! 👋 DevReady 도우미입니다.\n궁금한 것을 자유롭게 물어보거나 아래 메뉴를 선택해보세요.\n\nDevReady AI가 서비스 관련 질문에 자연어로 답변해드립니다.",
     time: now(),
     actions: [
       { label: "면접 바로 시작", href: "/interview/setup" },
@@ -104,7 +104,7 @@ const FALLBACK_RESPONSES: Record<string, { text: string; actions?: { label: stri
     actions: [{ label: "내 약점 확인", href: "/mypage?tab=interview" }],
   },
   "이력서 AI 자동완성": {
-    text: "✨ AI 이력서 자동완성 기능\n\n이력서 페이지에서 자기소개서 탭을 열면 'AI 자동완성' 버튼이 있습니다.\n\n입력한 경력·스킬·학력 정보를 바탕으로 Claude AI가 맞춤 문장을 제안합니다.\n\n⚠️ 프로 플랜 이상에서 이용 가능합니다.",
+    text: "✨ AI 이력서 자동완성 기능\n\n이력서 페이지에서 자기소개서 탭을 열면 'AI 자동완성' 버튼이 있습니다.\n\n입력한 경력·스킬·학력 정보를 바탕으로 DevReady AI가 맞춤 문장을 제안합니다.\n\n⚠️ 프로 플랜 이상에서 이용 가능합니다.",
     actions: [{ label: "이력서 작성하기", href: "/resume" }],
   },
   "음성 분석이 뭔가요?": {
@@ -117,9 +117,9 @@ const FALLBACK_RESPONSES: Record<string, { text: string; actions?: { label: stri
   },
 };
 
-// Mock Claude API call — simulates natural language response
+// Mock DevReady API call — simulates natural language response
 // Replace with real @anthropic-ai/sdk call when ANTHROPIC_API_KEY is available
-async function callClaudeAPI(userMessage: string, history: { role: string; content: string }[]): Promise<string> {
+async function callDevReadyAPI(userMessage: string, history: { role: string; content: string }[]): Promise<string> {
   // Real implementation would be:
   // const Anthropic = (await import("@anthropic-ai/sdk")).default;
   // const client = new Anthropic({ apiKey: "YOUR_ANTHROPIC_API_KEY_HERE", dangerouslyAllowBrowser: true });
@@ -248,7 +248,7 @@ export function ChatbotWidget() {
         responseText = exactMatch.text;
         actions = exactMatch.actions;
       } else {
-        responseText = await callClaudeAPI(text, conversationHistory.current.slice(-10));
+        responseText = await callDevReadyAPI(text, conversationHistory.current.slice(-10));
       }
 
       conversationHistory.current.push({ role: "assistant", content: responseText });
@@ -322,7 +322,7 @@ export function ChatbotWidget() {
                   {view === "history" ? "대화 이력" : view === "historyDetail" ? detailSession?.preview ?? "대화 보기" : "DevReady 도우미"}
                 </div>
                 <div className="flex items-center gap-1 text-xs text-white/70">
-                  {view === "chat" && <><span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />Claude AI 연동</>}
+                  {view === "chat" && <><span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />DevReady AI 연동</>}
                   {view === "history" && <><Clock className="w-3 h-3" />{sessions.length}개 대화</>}
                   {view === "historyDetail" && <><Clock className="w-3 h-3" />{detailSession?.date}</>}
                 </div>
@@ -456,7 +456,7 @@ export function ChatbotWidget() {
                               style={{ animation: `botBounce 1s ${i * 0.2}s infinite` }} />
                           ))}
                         </div>
-                        <span className="text-xs text-muted-foreground self-end mb-1">Claude AI 분석 중...</span>
+                        <span className="text-xs text-muted-foreground self-end mb-1">DevReady AI 분석 중...</span>
                       </div>
                     )}
                     <div ref={endRef} />
@@ -495,7 +495,7 @@ export function ChatbotWidget() {
                   <div className="px-3 pb-3 pt-1 flex gap-2 border-t border-border">
                     <input type="text" value={input} onChange={e => setInput(e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
-                      placeholder="자유롭게 질문하기... (Claude AI가 답변)"
+                      placeholder="자유롭게 질문하기... (DevReady AI가 답변)"
                       className="flex-1 px-3.5 py-2.5 rounded-xl bg-secondary border border-border text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors" />
                     <button onClick={() => sendMessage(input)} disabled={!input.trim() || typing}
                       className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center hover:bg-indigo-600 transition-colors disabled:opacity-40 shrink-0">
