@@ -248,6 +248,8 @@ export function InterviewSession() {
   const [cameraOn, setCameraOn] = useState(false);
   const [entries, setEntries] = useState<QEntry[]>(questionList);
   const [currentFollowup, setCurrentFollowup] = useState("");
+  const [followupTarget] = useState(() => Math.min(TOTAL, 1 + Math.floor(Math.random() * 2))); // 꼬리질문 1~2개
+  const [followupStep, setFollowupStep] = useState(0);
   const [sttTranscript, setSttTranscript] = useState("");
   const [sttActive, setSttActive] = useState(false);
   const [answerStartTime, setAnswerStartTime] = useState(0);
@@ -424,21 +426,39 @@ export function InterviewSession() {
     const star = analyzeSTAR(answer);
 
     if (phase === "answering") {
-      const followup = generateFollowup(entries[idx].main, answer);
-      setCurrentFollowup(followup);
+      // 메인 질문 답변 저장
       setEntries(prev => prev.map((e, i) => i === idx ? { ...e, answer, scores, star, wpm, answerTime: Math.round(elapsed * 60) } : e));
       setAnswer("");
-      setPhase("followup");
-    } else {
-      setEntries(prev => prev.map((e, i) => i === idx ? { ...e, followup: currentFollowup, followupAnswer: answer } : e));
+      setSttTranscript("");
       if (idx < TOTAL - 1) {
+        // 다음 메인 질문 (꼬리질문은 모든 메인 질문 이후로 미룸)
         setIdx(idx + 1);
         setPhase("question");
-        setAnswer("");
-        setSttTranscript("");
         setTimeLeft(TIME_PER_Q);
       } else {
-        const finalEntries = entries.map((e, i) => i === idx ? { ...e, followup: currentFollowup, followupAnswer: answer } : e);
+        // 메인 질문 종료 → 꼬리질문 단계 시작 (마지막 질문들 기준 1~2개)
+        const fEntry = TOTAL - followupTarget;
+        setFollowupStep(0);
+        setCurrentFollowup(generateFollowup(entries[fEntry].main, entries[fEntry].answer || answer));
+        setPhase("followup");
+      }
+    } else {
+      // 꼬리질문 답변 저장 (해당 질문 entry에 기록 → 리포트 호환)
+      const targetIdx = (TOTAL - followupTarget) + followupStep;
+      setEntries(prev => prev.map((e, i) => i === targetIdx ? { ...e, followup: currentFollowup, followupAnswer: answer } : e));
+      setAnswer("");
+      setSttTranscript("");
+      if (followupStep < followupTarget - 1) {
+        // 다음 꼬리질문
+        const nextStep = followupStep + 1;
+        const nextEntry = (TOTAL - followupTarget) + nextStep;
+        setFollowupStep(nextStep);
+        setCurrentFollowup(generateFollowup(entries[nextEntry].main, entries[nextEntry].answer));
+        setPhase("followup");
+        setTimeLeft(TIME_PER_Q);
+      } else {
+        // 모든 꼬리질문 종료 → 리포트
+        const finalEntries = entries.map((e, i) => i === targetIdx ? { ...e, followup: currentFollowup, followupAnswer: answer } : e);
         navigate("/interview/report/demo", { state: { entries: finalEntries, config: { job, level, type, interviewer, companyType: config.companyType } } });
       }
     }
@@ -621,7 +641,7 @@ export function InterviewSession() {
                     className="flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-white text-sm hover:bg-indigo-600 transition-colors disabled:opacity-40"
                   >
                     <ChevronRight className="w-4 h-4" />
-                    {phase === "answering" ? "답변 완료" : idx < TOTAL - 1 ? "다음 질문" : "면접 완료"}
+                    {phase === "answering" ? "답변 완료" : followupStep < followupTarget - 1 ? "다음 질문" : "면접 완료"}
                   </button>
                 </div>
               </div>
