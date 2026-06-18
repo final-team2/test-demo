@@ -7,6 +7,7 @@ import { useNavigate } from "react-router";
  * - 상태는 localStorage 플래그 하나로만 관리 (상태관리 라이브러리 미도입).
  */
 const KEY = "devready_authed";
+const CAREER_KEY = "devready_career_set";
 
 export function isAuthed(): boolean {
   try {
@@ -25,14 +26,35 @@ export function setAuthed(v: boolean): void {
   }
 }
 
+/** 맞춤 진로 변경(기본 베이스 정보) 설정 여부 */
+export function isCareerSet(): boolean {
+  try {
+    return localStorage.getItem(CAREER_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function setCareerSet(v: boolean): void {
+  try {
+    if (v) localStorage.setItem(CAREER_KEY, "1");
+    else localStorage.removeItem(CAREER_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
- * 로그인 필요한 동작 가드.
- * 로그인 상태면 action 실행, 비로그인이면 로그인 창(/auth)으로 이동.
+ * 실행 동작 가드 (2단계).
+ * 1) 비로그인 → 로그인 창(/auth)
+ * 2) 로그인했지만 맞춤 진로 변경 미설정 → 맞춤 진로 변경 창(/mypage?tab=career)
+ * 3) 둘 다 충족 → action 실행
  */
 export function useAuthGuard() {
   const navigate = useNavigate();
   return (action: () => void) => {
-    if (isAuthed()) action();
-    else navigate("/auth");
+    if (!isAuthed()) { navigate("/auth"); return; }
+    if (!isCareerSet()) { navigate("/mypage?tab=career"); return; }
+    action();
   };
 }

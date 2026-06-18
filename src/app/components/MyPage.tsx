@@ -10,6 +10,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   RadarChart, PolarGrid, PolarAngleAxis, Radar
 } from "recharts";
+import { setCareerSet } from "../auth";
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -769,7 +770,7 @@ function CareerTab() {
       </div>
 
       <div className="flex items-center gap-3">
-        <button onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 1500); }}
+        <button onClick={() => { setCareerSet(true); setSaved(true); setTimeout(() => setSaved(false), 1500); }}
           className="px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-indigo-600 transition-colors">
           저장하기
         </button>
