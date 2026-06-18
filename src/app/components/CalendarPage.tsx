@@ -30,6 +30,14 @@ const JOB_EVENTS = [
   },
 ];
 
+// 교육 캘린더 mock (수강 강의 일정)
+const EDU_EVENTS = [
+  { id: "e1", company: "알고리즘", title: "알고리즘 기초 완성", location: "온라인", start: "2026-06-02", end: "2026-06-22", color: "#6366F1", bg: "#EDE9FF", textColor: "#6366F1" },
+  { id: "e2", company: "CS 기초", title: "네트워크 & HTTP", location: "온라인", start: "2026-06-08", end: "2026-06-26", color: "#10B981", bg: "#D1FAE5", textColor: "#059669" },
+  { id: "e3", company: "프론트엔드", title: "React & TypeScript 심화", location: "온라인", start: "2026-06-12", end: "2026-07-02", color: "#F59E0B", bg: "#FEF3C7", textColor: "#D97706" },
+  { id: "e4", company: "백엔드", title: "Spring Boot & JPA", location: "온라인", start: "2026-06-16", end: "2026-07-08", color: "#EC4899", bg: "#FCE7F3", textColor: "#DB2777" },
+];
+
 // 교육센터 학습 진행도 mock (EducationPage의 COURSES와 동일 값)
 const LEARNING_COURSES = [
   { title: "알고리즘 기초 완성", done: 28, total: 42, color: "#6366F1" },
@@ -133,11 +141,13 @@ function buildWeekSlots(
 export function CalendarPage() {
   const navigate = useNavigate();
   const now = new Date();
+  const [calType, setCalType] = useState<"job" | "edu">("job");
+  const events = calType === "edu" ? EDU_EVENTS : JOB_EVENTS;
   const [year, setYear] = useState(2026);
   const [month, setMonth] = useState(5);
   const [selected, setSelected] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<Record<string, boolean>>(
-    Object.fromEntries(JOB_EVENTS.map(e => [e.id, true]))
+    Object.fromEntries([...JOB_EVENTS, ...EDU_EVENTS].map(e => [e.id, true]))
   );
 
   const totalDays = getDaysInMonth(year, month);
@@ -163,20 +173,20 @@ export function CalendarPage() {
   const isCurrentMonth = now.getFullYear() === year && now.getMonth() === month;
 
   // Deadline alerts: D-1 and D-3
-  const alertEvents = JOB_EVENTS.filter(e => {
+  const alertEvents = events.filter(e => {
     const d = daysUntil(e.end);
     return d === 1 || d === 3;
   });
 
   // Upcoming within 7 days (for sidebar)
-  const upcomingEvents = JOB_EVENTS.filter(e => {
+  const upcomingEvents = events.filter(e => {
     const d = daysUntil(e.end);
     return d >= 0 && d <= 7;
   }).sort((a, b) => a.end.localeCompare(b.end));
 
   // Selected day events
   const selectedEvents = selected
-    ? JOB_EVENTS.filter(e => e.start <= selected && e.end >= selected)
+    ? events.filter(e => e.start <= selected && e.end >= selected)
     : [];
 
   const toggleNotification = (id: string, ev: React.MouseEvent) => {
@@ -192,8 +202,16 @@ export function CalendarPage() {
     <div className="max-w-6xl mx-auto px-4 py-10">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">채용 캘린더</h1>
-          <p className="text-sm text-muted-foreground mt-1">찜한 공고의 시작일~마감일을 한눈에 관리하세요</p>
+          <h1 className="text-3xl font-bold text-foreground">{calType === "edu" ? "교육 캘린더" : "공고 캘린더"}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{calType === "edu" ? "수강 중인 강의 일정을 한눈에 관리하세요" : "찜한 공고의 시작일~마감일을 한눈에 관리하세요"}</p>
+        </div>
+        <div className="flex rounded-xl bg-secondary p-1 shrink-0">
+          {([["job", "공고 캘린더"], ["edu", "교육 캘린더"]] as const).map(([t, label]) => (
+            <button key={t} onClick={() => { setCalType(t); setSelected(null); }}
+              className={`px-4 py-2 rounded-lg text-sm transition-all ${calType === t ? "bg-card text-foreground shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"}`}>
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -270,7 +288,7 @@ export function CalendarPage() {
               const weekDateStrs = week.map(day =>
                 day ? toDateStr(year, month, day) : null
               );
-              const weekSlots = buildWeekSlots(weekDateStrs, JOB_EVENTS);
+              const weekSlots = buildWeekSlots(weekDateStrs, events);
               const maxSlot = weekSlots.length > 0 ? Math.max(...weekSlots.map(s => s.slot)) : -1;
               const rowHeight = SLOT_OFFSET + (maxSlot + 1) * (SLOT_HEIGHT + 2) + 4;
               const finalHeight = Math.max(CELL_HEIGHT, rowHeight);
@@ -283,7 +301,7 @@ export function CalendarPage() {
                     const dateStr = toDateStr(year, month, day);
                     const isToday = isCurrentMonth && day === today;
                     const isSelected = selected === dateStr;
-                    const hasDead = JOB_EVENTS.some(e => e.end === dateStr);
+                    const hasDead = events.some(e => e.end === dateStr);
                     const days = hasDead ? daysUntil(dateStr) : null;
 
                     return (
@@ -491,9 +509,9 @@ export function CalendarPage() {
 
           {/* Color legend */}
           <div className="rounded-2xl border border-border bg-card p-5">
-            <h3 className="font-semibold text-foreground mb-3 text-sm">찜한 공고 목록</h3>
+            <h3 className="font-semibold text-foreground mb-3 text-sm">{calType === "edu" ? "수강 강의 목록" : "찜한 공고 목록"}</h3>
             <div className="flex flex-col gap-2">
-              {JOB_EVENTS.map(e => {
+              {events.map(e => {
                 const days = daysUntil(e.end);
                 const badge = alertBadge(days);
                 return (

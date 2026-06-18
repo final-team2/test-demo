@@ -84,12 +84,18 @@ const APPLICATION_HISTORY = [
 ];
 
 const TABS = [
-  { id: "profile", label: "회원정보 수정", icon: User },
+  { id: "career", label: "맞춤 진로 변경", icon: TrendingUp },
+  { id: "profile", label: "기본 정보", icon: User },
   { id: "applications", label: "지원 내역", icon: Briefcase },
-  { id: "resume", label: "이력서 히스토리", icon: FileText },
+  { id: "resume", label: "내 이력서", icon: FileText },
   { id: "interview", label: "면접 히스토리", icon: History },
-  { id: "payment", label: "구독·결제 관리", icon: CreditCard },
+  { id: "payment", label: "결제 정보", icon: CreditCard },
 ];
+
+const CAREER_ROLES = ["프론트엔드", "백엔드", "풀스택", "AI/ML", "DevOps", "데이터"];
+const CAREER_PURPOSES = ["실무 역량 강화", "취업 준비", "이직 준비", "기초 다지기"];
+const CAREER_CAREERS = ["신입 (0~1년)", "주니어 (1~3년)", "미들 (3~5년)", "시니어 (5년+)"];
+const CAREER_LANGS = ["JavaScript", "TypeScript", "React", "Java", "Spring", "Python", "Go", "Kotlin"];
 
 // ─── Sub-views ───────────────────────────────────────────────────────────────
 
@@ -649,6 +655,65 @@ function PaymentTab() {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+function CareerTab() {
+  const [role, setRole] = useState(CAREER_ROLES[0]);
+  const [purpose, setPurpose] = useState(CAREER_PURPOSES[0]);
+  const [career, setCareer] = useState(CAREER_CAREERS[0]);
+  const [langs, setLangs] = useState<string[]>(["JavaScript", "TypeScript", "React"]);
+  const [saved, setSaved] = useState(false);
+
+  const toggleLang = (l: string) => setLangs(p => p.includes(l) ? p.filter(x => x !== l) : [...p, l]);
+  const selectCls = "w-full px-3 py-2.5 rounded-xl bg-secondary border border-border text-sm text-foreground focus:outline-none focus:border-primary/60";
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6">
+      <h2 className="font-semibold text-foreground mb-1">맞춤 진로 변경</h2>
+      <p className="text-sm text-muted-foreground mb-5">기본 베이스 정보를 수정하면 교육·공고·면접의 AI 추천이 이 정보를 기준으로 갱신됩니다.</p>
+
+      <div className="grid sm:grid-cols-3 gap-3 mb-4">
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">취업/교육 희망 직군</label>
+          <select value={role} onChange={e => setRole(e.target.value)} className={selectCls}>
+            {CAREER_ROLES.map(o => <option key={o}>{o}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">교육 목적</label>
+          <select value={purpose} onChange={e => setPurpose(e.target.value)} className={selectCls}>
+            {CAREER_PURPOSES.map(o => <option key={o}>{o}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">직군·경력</label>
+          <select value={career} onChange={e => setCareer(e.target.value)} className={selectCls}>
+            {CAREER_CAREERS.map(o => <option key={o}>{o}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <label className="text-xs text-muted-foreground mb-2 block">사용 가능 언어</label>
+        <div className="flex flex-wrap gap-2">
+          {CAREER_LANGS.map(l => (
+            <button key={l} onClick={() => toggleLang(l)}
+              className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${langs.includes(l) ? "bg-primary/10 border-primary text-primary" : "bg-secondary border-border text-muted-foreground hover:text-foreground"}`}>
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 1500); }}
+          className="px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-indigo-600 transition-colors">
+          저장하기
+        </button>
+        {saved && <span className="flex items-center gap-1 text-sm text-green-600"><CheckCircle2 className="w-4 h-4" />저장되었습니다</span>}
+      </div>
+    </div>
+  );
+}
+
 export function MyPage() {
   const location = useLocation();
   const [tab, setTab] = useState("profile");
@@ -682,6 +747,7 @@ export function MyPage() {
         </div>
 
         <div className="lg:col-span-3">
+          {tab === "career" && <CareerTab />}
           {tab === "profile" && <ProfileTab />}
           {tab === "applications" && <ApplicationsTab />}
           {tab === "resume" && <ResumeHistoryTab />}

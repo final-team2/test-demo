@@ -4,10 +4,10 @@ import {
   Code2, Server, Layout, Globe, Terminal, User, Briefcase,
   Brain, MessageCircle, Upload, ChevronRight, CheckCircle2,
   FileText, X, Shield, Smile, Zap, AlertTriangle, Building2,
-  Factory, Rocket, Network, Globe2, CreditCard, Lock
+  Factory, Rocket, Network, Globe2, CreditCard, Lock, Video, Mic
 } from "lucide-react";
 
-const STEPS = ["이용 동의", "직군·경력", "면접 유형", "회사·면접관", "자료 업로드"];
+const STEPS = ["이용 동의", "직군·경력", "면접 유형", "회사·면접관", "자료 업로드", "장비 점검"];
 
 const JOBS = [
   { id: "frontend", icon: Layout, label: "프론트엔드", desc: "React, Vue, CSS" },
@@ -87,6 +87,7 @@ export function InterviewSetup() {
     !!job && !!level,
     !!type,
     !!companyType,
+    true,
     true,
   ][step];
 
@@ -354,6 +355,54 @@ export function InterviewSetup() {
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 5: 카메라·음성 점검 */}
+          {step === 5 && (
+            <div>
+              <h2 className="font-semibold text-foreground mb-2">카메라·음성 점검</h2>
+              <p className="text-sm text-muted-foreground mb-5">면접 전 카메라와 마이크가 정상 동작하는지 확인하세요.</p>
+
+              <div className="grid sm:grid-cols-2 gap-3 mb-4">
+                {/* 카메라 미리보기 (mock) */}
+                <div className="rounded-xl border border-border bg-gray-900 aspect-video flex flex-col items-center justify-center text-gray-400 relative overflow-hidden">
+                  <Video className="w-8 h-8 mb-2" />
+                  <span className="text-xs">카메라 미리보기</span>
+                  <span className="absolute top-2 left-2 flex items-center gap-1 text-[11px] text-green-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />정상 인식
+                  </span>
+                </div>
+                {/* 음성 입력 레벨 (mock) */}
+                <div className="rounded-xl border border-border bg-secondary p-4 flex flex-col justify-center">
+                  <div className="flex items-center gap-2 mb-3 text-sm text-foreground"><Mic className="w-4 h-4 text-primary" />마이크 입력</div>
+                  <div className="flex items-end gap-1 h-10">
+                    {[40, 70, 55, 85, 60, 75, 45, 90, 50, 65].map((h, i) => (
+                      <div key={i} className="flex-1 rounded-sm bg-primary/60" style={{ height: `${h}%` }} />
+                    ))}
+                  </div>
+                  <span className="text-[11px] text-green-600 mt-2 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />음성이 정상적으로 입력됩니다</span>
+                </div>
+              </div>
+
+              {/* 환경(빛) 경고 (mock) */}
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs mb-4">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>현재 주변 조도는 적절합니다. 빛이 부족하면 표정 분석 정확도가 떨어질 수 있어요.</span>
+              </div>
+
+              {/* 경고문 */}
+              <div className="rounded-xl bg-secondary border border-border p-4">
+                <div className="text-sm font-medium text-foreground mb-2 flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-orange-500" />면접 전 꼭 확인하세요
+                </div>
+                <ul className="space-y-1.5 text-xs text-muted-foreground">
+                  <li>• 주변 환경이나 장비에 따라 피드백 정확도에 영향을 줄 수 있습니다.</li>
+                  <li>• 면접 진행 중에는 <span className="text-foreground font-medium">중단이 불가</span>합니다.</li>
+                  <li>• 중단할 경우 분석·피드백 결과에 영향을 줄 수 있습니다.</li>
+                  <li>• 조용한 환경에서 정면을 바라보며 진행해주세요.</li>
+                </ul>
               </div>
             </div>
           )}

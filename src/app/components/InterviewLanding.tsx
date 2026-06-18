@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router";
+import { AIRecommendCard } from "./AIRecommendCard";
 import {
   BrainCircuit, CheckCircle2, Star, Play, Clock, Users,
   Mic, Video, FileText, BarChart3, Shield, Zap, ChevronRight,
@@ -141,6 +142,13 @@ export function InterviewLanding() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* 기본 베이스 정보 → 레벨테스트 기준 AI 추천 */}
+      <section className="px-4 -mt-12 relative z-10">
+        <div className="max-w-5xl mx-auto">
+          <AIRecommendCard variant="interview" />
         </div>
       </section>
 

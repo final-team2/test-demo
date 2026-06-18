@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { AIRecommendCard } from "./AIRecommendCard";
 import { Search, Heart, MapPin, Clock, Building2, ChevronRight, SlidersHorizontal, Briefcase, X } from "lucide-react";
 
 export const JOBS_DATA = [
@@ -175,6 +176,9 @@ export function JobsPage() {
           <p className="text-sm text-muted-foreground mt-1">총 {filtered.length}개 공고 · 찜 {wishes.length}개</p>
         </div>
       </div>
+
+      {/* 기본 베이스 정보 → 레벨테스트 기준 AI 추천 */}
+      <AIRecommendCard variant="jobs" />
 
       {/* Search & filter bar */}
       <div className="flex gap-3 mb-4">
