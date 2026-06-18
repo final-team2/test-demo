@@ -10,7 +10,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   RadarChart, PolarGrid, PolarAngleAxis, Radar
 } from "recharts";
-import { setCareerSet } from "../auth";
+import { getCareer, saveCareer } from "../auth";
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -668,15 +668,12 @@ function PaymentTab() {
 type Exp = { tech: string; years: number; months: number };
 
 function CareerTab() {
-  const [role, setRole] = useState(CAREER_ROLES[0]);
-  const [purpose, setPurpose] = useState(CAREER_PURPOSES[0]);
+  const initial = getCareer(); // 저장된 진로 정보(없으면 기본값)
+  const [role, setRole] = useState(initial.role);
+  const [purpose, setPurpose] = useState(initial.purpose);
   // 직군과 분리된 '기술별 경력' (예: React 1년, Java 3년 6개월, Python 5년)
-  const [exps, setExps] = useState<Exp[]>([
-    { tech: "React", years: 1, months: 0 },
-    { tech: "Java", years: 3, months: 6 },
-    { tech: "Python", years: 5, months: 0 },
-  ]);
-  const [langs, setLangs] = useState<string[]>(["JavaScript", "TypeScript", "React"]);
+  const [exps, setExps] = useState<Exp[]>(initial.exps);
+  const [langs, setLangs] = useState<string[]>(initial.langs);
   const [saved, setSaved] = useState(false);
 
   const toggleLang = (l: string) => setLangs(p => p.includes(l) ? p.filter(x => x !== l) : [...p, l]);
@@ -770,7 +767,7 @@ function CareerTab() {
       </div>
 
       <div className="flex items-center gap-3">
-        <button onClick={() => { setCareerSet(true); setSaved(true); setTimeout(() => setSaved(false), 1500); }}
+        <button onClick={() => { saveCareer({ role, purpose, exps, langs }); setSaved(true); setTimeout(() => setSaved(false), 1500); }}
           className="px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-indigo-600 transition-colors">
           저장하기
         </button>
