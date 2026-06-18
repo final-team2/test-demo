@@ -184,12 +184,14 @@ const TAG_COLORS: Record<string, string> = {
 export function LandingPage() {
   const navigate = useNavigate();
   const [calView, setCalView] = useState({ year: CAL_TODAY.getFullYear(), month: CAL_TODAY.getMonth() });
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   function shiftMonth(delta: number) {
     setCalView(prev => {
       const next = new Date(prev.year, prev.month + delta, 1);
       return { year: next.getFullYear(), month: next.getMonth() };
     });
+    setSelectedDate(null);
   }
   const [searchQuery, setSearchQuery] = useState("");
   const [savedJobs, setSavedJobs] = useState<Set<number>>(new Set([2]));
@@ -411,10 +413,18 @@ export function LandingPage() {
                       const ds = calDateStr(calView.year, calView.month, day);
                       const evs = CALENDAR_EVENTS.filter(e => e.date === ds);
                       const isToday = ds === todayStr;
+                      const isSelected = ds === selectedDate;
                       cells.push(
-                        <button key={ds} onClick={() => navigate("/calendar")} className="flex flex-col items-center py-0.5 group">
+                        <button
+                          key={ds}
+                          onClick={() => setSelectedDate(prev => prev === ds ? null : ds)}
+                          title={evs.length > 0 ? evs.map(e => `${e.company} · ${e.type}`).join(", ") : "일정 없음"}
+                          className="flex flex-col items-center py-0.5 group"
+                        >
                           <span className={`flex items-center justify-center w-6 h-6 rounded-full text-xs transition-colors ${
-                            isToday ? "bg-indigo-600 text-white font-semibold" : "text-gray-700 group-hover:bg-gray-100"
+                            isToday ? "bg-indigo-600 text-white font-semibold"
+                            : isSelected ? "bg-indigo-100 text-indigo-700 font-semibold ring-1 ring-indigo-300"
+                            : "text-gray-700 group-hover:bg-gray-100"
                           }`}>{day}</span>
                           <span className="flex gap-0.5 h-1.5 mt-0.5">
                             {evs.slice(0, 3).map((e, idx) => (
@@ -429,31 +439,68 @@ export function LandingPage() {
                 </div>
               </div>
 
-              {/* 다가오는 일정 */}
+              {/* 일정: 날짜 선택 시 해당 날짜 일정, 아니면 다가오는 일정 */}
               <div className="border-t border-gray-100 px-4 py-3 space-y-1">
-                <p className="text-xs font-semibold text-gray-500 mb-1.5">다가오는 일정</p>
-                {CALENDAR_EVENTS
-                  .filter(e => calDaysUntil(e.date) >= 0)
-                  .sort((a, b) => a.date.localeCompare(b.date))
-                  .slice(0, 3)
-                  .map(e => {
-                    const dday = calDaysUntil(e.date);
-                    const [, mm, dd] = e.date.split("-");
-                    return (
-                      <button
-                        key={e.date + e.company}
-                        onClick={() => navigate("/calendar")}
-                        className="w-full flex items-center gap-2.5 text-left hover:bg-gray-50 rounded-lg px-1.5 py-1.5 transition-colors"
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: e.color }} />
-                        <span className="text-xs text-gray-400 w-9 shrink-0">{Number(mm)}/{Number(dd)}</span>
-                        <span className="text-sm text-gray-800 flex-1 truncate">{e.company} · {e.type}</span>
-                        <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
-                          dday === 0 ? "bg-red-500 text-white" : dday <= 3 ? "bg-orange-100 text-orange-600" : "bg-gray-100 text-gray-500"
-                        }`}>{dday === 0 ? "D-DAY" : `D-${dday}`}</span>
+                {selectedDate ? (
+                  <>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-xs font-semibold text-gray-500">
+                        {Number(selectedDate.split("-")[1])}월 {Number(selectedDate.split("-")[2])}일 일정
+                      </p>
+                      <button onClick={() => setSelectedDate(null)} className="text-[11px] text-indigo-600 hover:underline">
+                        다가오는 일정 보기
                       </button>
-                    );
-                  })}
+                    </div>
+                    {(() => {
+                      const dayEvents = CALENDAR_EVENTS.filter(e => e.date === selectedDate);
+                      if (dayEvents.length === 0) {
+                        return <p className="text-xs text-gray-400 px-1.5 py-2">이 날은 등록된 일정이 없습니다.</p>;
+                      }
+                      return dayEvents.map(e => {
+                        const dday = calDaysUntil(e.date);
+                        return (
+                          <button
+                            key={e.date + e.company}
+                            onClick={() => navigate("/calendar")}
+                            className="w-full flex items-center gap-2.5 text-left hover:bg-gray-50 rounded-lg px-1.5 py-1.5 transition-colors"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: e.color }} />
+                            <span className="text-sm text-gray-800 flex-1 truncate">{e.company} · {e.type}</span>
+                            <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
+                              dday === 0 ? "bg-red-500 text-white" : dday > 0 && dday <= 3 ? "bg-orange-100 text-orange-600" : dday > 0 ? "bg-gray-100 text-gray-500" : "bg-gray-100 text-gray-400"
+                            }`}>{dday === 0 ? "D-DAY" : dday > 0 ? `D-${dday}` : "지난 일정"}</span>
+                          </button>
+                        );
+                      });
+                    })()}
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs font-semibold text-gray-500 mb-1.5">다가오는 일정</p>
+                    {CALENDAR_EVENTS
+                      .filter(e => calDaysUntil(e.date) >= 0)
+                      .sort((a, b) => a.date.localeCompare(b.date))
+                      .slice(0, 3)
+                      .map(e => {
+                        const dday = calDaysUntil(e.date);
+                        const [, mm, dd] = e.date.split("-");
+                        return (
+                          <button
+                            key={e.date + e.company}
+                            onClick={() => setSelectedDate(e.date)}
+                            className="w-full flex items-center gap-2.5 text-left hover:bg-gray-50 rounded-lg px-1.5 py-1.5 transition-colors"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: e.color }} />
+                            <span className="text-xs text-gray-400 w-9 shrink-0">{Number(mm)}/{Number(dd)}</span>
+                            <span className="text-sm text-gray-800 flex-1 truncate">{e.company} · {e.type}</span>
+                            <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
+                              dday === 0 ? "bg-red-500 text-white" : dday <= 3 ? "bg-orange-100 text-orange-600" : "bg-gray-100 text-gray-500"
+                            }`}>{dday === 0 ? "D-DAY" : `D-${dday}`}</span>
+                          </button>
+                        );
+                      })}
+                  </>
+                )}
               </div>
 
               {/* 학습 진행도 (교육센터 연동) */}
