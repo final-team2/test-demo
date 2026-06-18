@@ -4,7 +4,7 @@ import {
   Code2, Server, Layout, Globe, Terminal, User, Briefcase,
   Brain, MessageCircle, Upload, ChevronRight, CheckCircle2,
   FileText, X, Shield, Smile, Zap, AlertTriangle, Building2,
-  Factory, Rocket, Network, Globe2, CreditCard, Lock, Video, Mic, Play
+  Factory, Rocket, Network, Globe2, CreditCard, Lock, Video, Mic
 } from "lucide-react";
 
 const STEPS = ["이용 동의", "이력서·질문 수", "면접 환경", "설정 요약", "장비 점검"];
@@ -83,7 +83,6 @@ export function InterviewSetup() {
     Object.fromEntries(CONSENT_ITEMS.map(c => [c.id, false]))
   );
   const [resume, setResume] = useState("");
-  const [confirming, setConfirming] = useState(false);
 
   const requiredIds = CONSENT_ITEMS.filter(c => c.required).map(c => c.id);
   const consentOk = requiredIds.every(id => consents[id]);
@@ -106,14 +105,10 @@ export function InterviewSetup() {
     if (step < STEPS.length - 1) {
       setStep(step + 1);
     } else {
-      setConfirming(true);
+      navigate("/interview/session", {
+        state: { job, level, type, companyType, interviewer, count, coverText, resume, jobContext },
+      });
     }
-  };
-
-  const startInterview = () => {
-    navigate("/interview/session", {
-      state: { job, level, type, companyType, interviewer, count, coverText, resume, jobContext },
-    });
   };
 
   if (!IS_PREMIUM) {
@@ -135,32 +130,6 @@ export function InterviewSetup() {
             돌아가기
           </button>
         </div>
-      </div>
-    );
-  }
-
-  // 면접 시작 전 최종 확인 화면 (가운데 버튼을 눌러야 실제 시작)
-  if (confirming) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 py-16" style={{ background: "linear-gradient(135deg, #F8F9FF 0%, #EEF0FF 100%)" }}>
-        <div className="text-center mb-10">
-          <h1 className="text-2xl font-bold text-foreground mb-2">면접을 시작할 준비가 되었나요?</h1>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            아래 원을 누르면 실제 면접이 시작됩니다.<br />
-            시작 후에는 <span className="text-foreground font-medium">중단할 수 없습니다.</span>
-          </p>
-        </div>
-        <button
-          onClick={startInterview}
-          className="w-44 h-44 rounded-full flex flex-col items-center justify-center text-white text-center transition-transform hover:scale-105 active:scale-95"
-          style={{ background: "linear-gradient(135deg,#6C63FF,#8B5CF6)", boxShadow: "0 12px 36px rgba(108,99,255,0.45)" }}
-        >
-          <Play className="w-10 h-10 mb-2" />
-          <span className="font-semibold text-sm leading-tight">가운데를 눌러<br />면접 시작</span>
-        </button>
-        <button onClick={() => setConfirming(false)} className="mt-10 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          이전으로 돌아가기
-        </button>
       </div>
     );
   }

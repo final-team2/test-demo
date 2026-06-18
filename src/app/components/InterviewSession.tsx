@@ -192,6 +192,9 @@ interface QEntry {
   answerTime: number;
 }
 
+const WARMUP_SECONDS = 5;
+const VOICE_DB_THRESHOLD = 60; // 일반 성인 대화 수준(약 60dB) 이상이면 워밍업 즉시 종료
+
 export function InterviewSession() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -248,6 +251,9 @@ export function InterviewSession() {
   const [sttTranscript, setSttTranscript] = useState("");
   const [sttActive, setSttActive] = useState(false);
   const [answerStartTime, setAnswerStartTime] = useState(0);
+  const [warmup, setWarmup] = useState(true);
+  const [warmupLeft, setWarmupLeft] = useState(WARMUP_SECONDS);
+  const [micDb, setMicDb] = useState(0);
 
   // Video/camera refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -256,6 +262,11 @@ export function InterviewSession() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const waveRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recognitionRef = useRef<any>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const warmupTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const warmupEndedRef = useRef(false);
 
   // Camera toggle
   const toggleCamera = useCallback(async () => {
@@ -304,6 +315,64 @@ export function InterviewSession() {
     streamRef.current?.getTracks().forEach(t => t.stop());
     recognitionRef.current?.stop();
   }, []);
+
+  // ── 준비(워밍업) 5초: 음성·표정 점수 미반영, 음성이 기준 dB 이상이면 즉시 시작 ──
+  const endWarmup = useCallback(() => {
+    if (warmupEndedRef.current) return;
+    warmupEndedRef.current = true;
+    if (warmupTimerRef.current) clearInterval(warmupTimerRef.current);
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    micStreamRef.current?.getTracks().forEach(t => t.stop());
+    micStreamRef.current = null;
+    audioCtxRef.current?.close().catch(() => {});
+    audioCtxRef.current = null;
+    setWarmup(false);
+  }, []);
+
+  useEffect(() => {
+    // 5초 카운트다운
+    warmupTimerRef.current = setInterval(() => {
+      setWarmupLeft(s => { if (s <= 1) { endWarmup(); return 0; } return s - 1; });
+    }, 1000);
+
+    // 마이크 음량(데시벨) 감지 — 기준 이상이면 즉시 시작
+    let cancelled = false;
+    (async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
+        micStreamRef.current = stream;
+        const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
+        const ctx: AudioContext = new Ctx();
+        audioCtxRef.current = ctx;
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 512;
+        ctx.createMediaStreamSource(stream).connect(analyser);
+        const buf = new Uint8Array(analyser.fftSize);
+        const tick = () => {
+          analyser.getByteTimeDomainData(buf);
+          let sum = 0;
+          for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
+          const rms = Math.sqrt(sum / buf.length);
+          const db = Math.round(20 * Math.log10(Math.max(rms, 0.0001)) + 90);
+          setMicDb(db);
+          if (db >= VOICE_DB_THRESHOLD) { endWarmup(); return; }
+          rafRef.current = requestAnimationFrame(tick);
+        };
+        rafRef.current = requestAnimationFrame(tick);
+      } catch {
+        // 마이크 권한이 없으면 카운트다운(5초)만으로 진행
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (warmupTimerRef.current) clearInterval(warmupTimerRef.current);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      micStreamRef.current?.getTracks().forEach(t => t.stop());
+      audioCtxRef.current?.close().catch(() => {});
+    };
+  }, [endWarmup]);
 
   const startSTT = () => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -386,6 +455,41 @@ export function InterviewSession() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {/* 준비(워밍업) 오버레이 — 5초 경과 또는 음성 감지 시 종료 */}
+      {warmup && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center px-4 text-white" style={{ background: "rgba(15,23,42,0.96)" }}>
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-xs text-white/70 mb-4">
+              <Sparkles className="w-3 h-3" />준비 시간 · 점수 미반영
+            </div>
+            <h2 className="text-2xl font-bold mb-2">잠시 후 면접이 시작됩니다</h2>
+            <p className="text-white/60 text-sm leading-relaxed">
+              이 시간 동안의 음성·표정은 <span className="text-white font-medium">점수에 반영되지 않습니다.</span><br />
+              지금 말을 시작하면(약 {VOICE_DB_THRESHOLD}dB 이상) 바로 면접이 시작됩니다.
+            </p>
+          </div>
+
+          <div className="text-7xl font-bold mb-8" style={{ fontFamily: "'DM Mono', monospace" }}>{warmupLeft}</div>
+
+          <div className="w-64">
+            <div className="flex items-center justify-between text-xs text-white/60 mb-1.5">
+              <span className="flex items-center gap-1"><Mic className="w-3.5 h-3.5" />입력 음량</span>
+              <span className={micDb >= VOICE_DB_THRESHOLD ? "text-green-400 font-medium" : ""}>{micDb} dB</span>
+            </div>
+            <div className="h-2.5 rounded-full bg-white/15 overflow-hidden">
+              <div className="h-full rounded-full transition-all duration-100"
+                style={{ width: `${Math.min(100, Math.max(0, (micDb / 80) * 100))}%`, backgroundColor: micDb >= VOICE_DB_THRESHOLD ? "#10B981" : "#6C63FF" }} />
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-white/40 mt-1.5">
+              <span>기준 {VOICE_DB_THRESHOLD}dB · 일반 대화 수준</span>
+              <span>마이크 미허용 시 {WARMUP_SECONDS}초 후 시작</span>
+            </div>
+          </div>
+
+          <button onClick={endWarmup} className="mt-10 text-sm text-white/60 hover:text-white transition-colors">바로 시작하기</button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-3.5 border-b border-border">
         <div className="flex items-center gap-3">
