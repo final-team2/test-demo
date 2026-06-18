@@ -4,10 +4,10 @@ import {
   Code2, Server, Layout, Globe, Terminal, User, Briefcase,
   Brain, MessageCircle, Upload, ChevronRight, CheckCircle2,
   FileText, X, Shield, Smile, Zap, AlertTriangle, Building2,
-  Factory, Rocket, Network, Globe2, CreditCard, Lock, Video, Mic
+  Factory, Rocket, Network, Globe2, CreditCard, Lock, Video, Mic, Play
 } from "lucide-react";
 
-const STEPS = ["이용 동의", "직군·경력", "면접 유형", "회사·면접관", "자료 업로드", "장비 점검"];
+const STEPS = ["이용 동의", "이력서·질문 수", "면접 환경", "장비 점검", "설정 요약"];
 
 const JOBS = [
   { id: "frontend", icon: Layout, label: "프론트엔드", desc: "React, Vue, CSS" },
@@ -49,8 +49,13 @@ const CONSENT_ITEMS = [
   { id: "ai_data", label: "AI 학습 목적 답변 데이터 활용", required: true, detail: "답변 내용은 서비스 품질 개선에 익명으로 사용됩니다." },
   { id: "video_record", label: "면접 영상 분석 (표정·시선 분석용)", required: true, detail: "Face-api.js를 통한 실시간 표정·시선 분석에 동의합니다." },
   { id: "voice_analyze", label: "음성 STT 및 분석 데이터 활용", required: true, detail: "Web Speech API로 음성을 텍스트로 변환하고 분석합니다." },
-  { id: "company_share", label: "업체 측 이력서·답변 결과 공유", required: false, detail: "찜한 기업 채용담당자에게 면접 결과 공유를 허용합니다." },
   { id: "marketing", label: "서비스 개선을 위한 익명 통계 활용", required: false, detail: "익명 처리된 통계 데이터를 서비스 개선에 활용합니다." },
+];
+
+const RESUMES = [
+  { id: "r1", title: "프론트엔드 신입 이력서", date: "2026-06-10", desc: "React · TypeScript 중심" },
+  { id: "r2", title: "React 개발자 이력서", date: "2026-05-22", desc: "실무 프로젝트 2건 포함" },
+  { id: "r3", title: "포트폴리오 통합본", date: "2026-04-30", desc: "전체 경력·프로젝트 요약" },
 ];
 
 // Mock subscription check
@@ -77,6 +82,8 @@ export function InterviewSetup() {
   const [consents, setConsents] = useState<Record<string, boolean>>(
     Object.fromEntries(CONSENT_ITEMS.map(c => [c.id, false]))
   );
+  const [resume, setResume] = useState("");
+  const [confirming, setConfirming] = useState(false);
 
   const requiredIds = CONSENT_ITEMS.filter(c => c.required).map(c => c.id);
   const consentOk = requiredIds.every(id => consents[id]);
@@ -84,9 +91,8 @@ export function InterviewSetup() {
 
   const canNext = [
     consentOk,
-    !!job && !!level,
-    !!type,
-    !!companyType,
+    !!resume,
+    !!type && !!companyType,
     true,
     true,
   ][step];
@@ -100,10 +106,14 @@ export function InterviewSetup() {
     if (step < STEPS.length - 1) {
       setStep(step + 1);
     } else {
-      navigate("/interview/session", {
-        state: { job, level, type, companyType, interviewer, count, coverText, jobContext },
-      });
+      setConfirming(true);
     }
+  };
+
+  const startInterview = () => {
+    navigate("/interview/session", {
+      state: { job, level, type, companyType, interviewer, count, coverText, resume, jobContext },
+    });
   };
 
   if (!IS_PREMIUM) {
@@ -125,6 +135,32 @@ export function InterviewSetup() {
             돌아가기
           </button>
         </div>
+      </div>
+    );
+  }
+
+  // 면접 시작 전 최종 확인 화면 (가운데 버튼을 눌러야 실제 시작)
+  if (confirming) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 py-16" style={{ background: "linear-gradient(135deg, #F8F9FF 0%, #EEF0FF 100%)" }}>
+        <div className="text-center mb-10">
+          <h1 className="text-2xl font-bold text-foreground mb-2">면접을 시작할 준비가 되었나요?</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            아래 원을 누르면 실제 면접이 시작됩니다.<br />
+            시작 후에는 <span className="text-foreground font-medium">중단할 수 없습니다.</span>
+          </p>
+        </div>
+        <button
+          onClick={startInterview}
+          className="w-44 h-44 rounded-full flex flex-col items-center justify-center text-white text-center transition-transform hover:scale-105 active:scale-95"
+          style={{ background: "linear-gradient(135deg,#6C63FF,#8B5CF6)", boxShadow: "0 12px 36px rgba(108,99,255,0.45)" }}
+        >
+          <Play className="w-10 h-10 mb-2" />
+          <span className="font-semibold text-sm leading-tight">가운데를 눌러<br />면접 시작</span>
+        </button>
+        <button onClick={() => setConfirming(false)} className="mt-10 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          이전으로 돌아가기
+        </button>
       </div>
     );
   }
@@ -179,8 +215,8 @@ export function InterviewSetup() {
                 <h2 className="font-semibold text-foreground">면접 전 동의 절차</h2>
               </div>
               <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
-                AI 모의 면접 결과 데이터의 업체 측 공개 여부를 포함하여<br />
-                아래 항목에 동의해주세요. <span className="text-primary font-medium">필수 항목 동의 후 면접 시작이 가능합니다.</span>
+                AI 모의 면접 진행을 위해 아래 항목에 동의해주세요.<br />
+                <span className="text-primary font-medium">필수 항목 동의 후 면접 시작이 가능합니다.</span>
               </p>
 
               {/* All agree */}
@@ -216,39 +252,32 @@ export function InterviewSetup() {
             </div>
           )}
 
-          {/* Step 1: Job + Level */}
+          {/* Step 1: 이력서 선택 + 질문 수 */}
           {step === 1 && (
             <div>
-              <h2 className="font-semibold text-foreground mb-4">직군과 경력을 선택하세요</h2>
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-6">
-                {JOBS.map(({ id, icon: Icon, label, desc }) => (
-                  <button key={id} onClick={() => setJob(id)}
-                    className={`p-3 rounded-xl border text-left transition-all flex flex-col ${job === id ? "border-primary bg-primary/5" : "border-border bg-secondary hover:border-primary/40"}`}>
-                    <Icon className={`w-5 h-5 mb-1.5 ${job === id ? "text-primary" : "text-muted-foreground"}`} />
-                    <div className="font-medium text-xs text-foreground">{label}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5 leading-tight hidden sm:block">{desc}</div>
+              <div className="flex items-center gap-2 mb-2">
+                <FileText className="w-5 h-5 text-primary" />
+                <h2 className="font-semibold text-foreground">이력서를 선택하세요</h2>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">면접에 사용할 이력서를 골라주세요. <span className="text-primary font-medium">(필수)</span></p>
+              <div className="flex flex-col gap-2 mb-6">
+                {RESUMES.map(r => (
+                  <button key={r.id} onClick={() => setResume(r.id)}
+                    className={`p-3.5 rounded-xl border text-left transition-all flex items-center justify-between ${resume === r.id ? "border-primary bg-primary/5" : "border-border bg-secondary hover:border-primary/40"}`}>
+                    <div className="flex items-center gap-3">
+                      <FileText className={`w-4 h-4 shrink-0 ${resume === r.id ? "text-primary" : "text-muted-foreground"}`} />
+                      <div>
+                        <div className="font-medium text-sm text-foreground">{r.title}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{r.desc} · {r.date}</div>
+                      </div>
+                    </div>
+                    {resume === r.id && <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />}
                   </button>
                 ))}
               </div>
 
               <div className="border-t border-border pt-5">
-                <h3 className="font-medium text-foreground text-sm mb-3">경력 수준</h3>
-                <div className="flex flex-col gap-2">
-                  {LEVELS.map(({ id, label, desc }) => (
-                    <button key={id} onClick={() => setLevel(id)}
-                      className={`p-3.5 rounded-xl border text-left transition-all flex items-center justify-between ${level === id ? "border-primary bg-primary/5" : "border-border bg-secondary hover:border-primary/40"}`}>
-                      <div>
-                        <div className="font-medium text-sm text-foreground">{label}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{desc}</div>
-                      </div>
-                      {level === id && <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t border-border pt-5 mt-5">
-                <label className="text-sm text-muted-foreground block mb-2">질문 수</label>
+                <label className="text-sm font-medium text-foreground block mb-3">질문 수</label>
                 <div className="flex gap-2">
                   {[5, 10, 15].map(n => (
                     <button key={n} onClick={() => setCount(n)}
@@ -261,11 +290,13 @@ export function InterviewSetup() {
             </div>
           )}
 
-          {/* Step 2: Interview type */}
+          {/* Step 2: 면접 환경 (면접 유형 + 회사 유형 + 면접관 유형) */}
           {step === 2 && (
             <div>
-              <h2 className="font-semibold text-foreground mb-4">면접 유형을 선택하세요</h2>
-              <div className="grid grid-cols-2 gap-3">
+              <h2 className="font-semibold text-foreground mb-4">면접 환경을 설정하세요</h2>
+
+              <h3 className="text-sm font-medium text-foreground mb-3">면접 유형</h3>
+              <div className="grid grid-cols-2 gap-3 mb-6">
                 {TYPES.map(({ id, icon: Icon, label, desc }) => (
                   <button key={id} onClick={() => setType(id)}
                     className={`p-4 rounded-xl border text-left transition-all ${type === id ? "border-primary bg-primary/5" : "border-border bg-secondary hover:border-primary/40"}`}>
@@ -275,24 +306,19 @@ export function InterviewSetup() {
                   </button>
                 ))}
               </div>
-            </div>
-          )}
 
-          {/* Step 3: Company type + Interviewer */}
-          {step === 3 && (
-            <div>
-              <h2 className="font-semibold text-foreground mb-4">회사 유형과 면접관 스타일을 선택하세요</h2>
-
-              <h3 className="text-sm font-medium text-foreground mb-3">회사 유형</h3>
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-6">
-                {COMPANY_TYPES.map(({ id, icon: Icon, label, desc }) => (
-                  <button key={id} onClick={() => setCompanyType(id)}
-                    className={`p-3 rounded-xl border text-left transition-all flex flex-col ${companyType === id ? "border-primary bg-primary/5" : "border-border bg-secondary hover:border-primary/40"}`}>
-                    <Icon className={`w-5 h-5 mb-1.5 ${companyType === id ? "text-primary" : "text-muted-foreground"}`} />
-                    <div className="font-medium text-xs text-foreground">{label}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5 leading-tight hidden sm:block">{desc.split(' ')[0]}</div>
-                  </button>
-                ))}
+              <div className="border-t border-border pt-5 mb-6">
+                <h3 className="text-sm font-medium text-foreground mb-3">회사 유형</h3>
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                  {COMPANY_TYPES.map(({ id, icon: Icon, label, desc }) => (
+                    <button key={id} onClick={() => setCompanyType(id)}
+                      className={`p-3 rounded-xl border text-left transition-all flex flex-col ${companyType === id ? "border-primary bg-primary/5" : "border-border bg-secondary hover:border-primary/40"}`}>
+                      <Icon className={`w-5 h-5 mb-1.5 ${companyType === id ? "text-primary" : "text-muted-foreground"}`} />
+                      <div className="font-medium text-xs text-foreground">{label}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5 leading-tight hidden sm:block">{desc.split(' ')[0]}</div>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="border-t border-border pt-5">
@@ -312,55 +338,30 @@ export function InterviewSetup() {
             </div>
           )}
 
-          {/* Step 4: Upload */}
+          {/* Step 4: 면접 설정 요약 (크게) */}
           {step === 4 && (
             <div>
-              <h2 className="font-semibold text-foreground mb-2">자소서 입력 (선택)</h2>
-              <p className="text-sm text-muted-foreground mb-5">
-                자기소개서를 붙여넣으면 Claude AI가 개인화된 인성 질문을 추출합니다.
-              </p>
-              <textarea
-                value={coverText}
-                onChange={e => setCoverText(e.target.value)}
-                placeholder="자기소개서 내용을 여기에 붙여넣으세요..."
-                className="w-full h-40 px-4 py-3 rounded-xl bg-secondary border border-border text-foreground text-sm focus:outline-none focus:border-primary/60 resize-none placeholder:text-muted-foreground mb-3"
-              />
-              {coverText.length > 0 && (
-                <div className="flex items-center gap-2 p-3 rounded-xl bg-green-50 border border-green-200 text-green-700 text-xs">
-                  <CheckCircle2 className="w-4 h-4" />
-                  자소서 {coverText.length}자 — Claude AI가 맞춤 인성 질문을 생성합니다
-                </div>
-              )}
-              {!coverText && (
-                <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 text-xs text-muted-foreground">
-                  자소서 없이도 면접을 시작할 수 있습니다.
-                </div>
-              )}
-
-              {/* Summary */}
-              <div className="mt-6 pt-5 border-t border-border">
-                <h3 className="text-sm font-medium text-foreground mb-3">면접 설정 요약</h3>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  {[
-                    ["직군", JOBS.find(j => j.id === job)?.label ?? "-"],
-                    ["경력", LEVELS.find(l => l.id === level)?.label ?? "-"],
-                    ["면접 유형", TYPES.find(t => t.id === type)?.label ?? "-"],
-                    ["회사 유형", COMPANY_TYPES.find(c => c.id === companyType)?.label ?? "-"],
-                    ["면접관", INTERVIEWER_TYPES.find(i => i.id === interviewer)?.label ?? "-"],
-                    ["질문 수", `${count}문항`],
-                  ].map(([k, v]) => (
-                    <div key={k} className="flex items-center justify-between px-3 py-2 rounded-lg bg-secondary border border-border">
-                      <span className="text-muted-foreground">{k}</span>
-                      <span className="font-medium text-foreground">{v}</span>
-                    </div>
-                  ))}
-                </div>
+              <h2 className="font-semibold text-foreground mb-2">면접 설정 요약</h2>
+              <p className="text-sm text-muted-foreground mb-6">아래 설정으로 면접을 시작합니다. 확인 후 <span className="text-foreground font-medium">면접 시작</span>을 눌러주세요.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  ["이력서", RESUMES.find(r => r.id === resume)?.title ?? "-"],
+                  ["면접 유형", TYPES.find(t => t.id === type)?.label ?? "-"],
+                  ["회사 유형", COMPANY_TYPES.find(c => c.id === companyType)?.label ?? "-"],
+                  ["면접관", INTERVIEWER_TYPES.find(i => i.id === interviewer)?.label ?? "-"],
+                  ["질문 수", `${count}문항`],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex flex-col gap-1 px-4 py-4 rounded-xl bg-secondary border border-border">
+                    <span className="text-xs text-muted-foreground">{k}</span>
+                    <span className="text-lg font-bold text-foreground">{v}</span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {/* Step 5: 카메라·음성 점검 */}
-          {step === 5 && (
+          {/* Step 3: 장비 점검 (카메라·음성) */}
+          {step === 3 && (
             <div>
               <h2 className="font-semibold text-foreground mb-2">카메라·음성 점검</h2>
               <p className="text-sm text-muted-foreground mb-5">면접 전 카메라와 마이크가 정상 동작하는지 확인하세요.</p>
