@@ -198,7 +198,7 @@ export function InterviewSetup() {
               </div>
 
               <div className="flex flex-col gap-2">
-                {CONSENT_ITEMS.map(item => (
+                {[...CONSENT_ITEMS].sort((a, b) => Number(b.required) - Number(a.required)).map(item => (
                   <div
                     key={item.id}
                     className="p-3 rounded-xl bg-secondary border border-border cursor-pointer hover:border-primary/30 transition-colors"
