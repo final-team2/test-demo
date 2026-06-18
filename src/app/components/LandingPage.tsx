@@ -7,6 +7,7 @@ import {
   Zap, BarChart3, Building2, GraduationCap, Code2,
   Layers, Globe, Database, Cpu, PenTool
 } from "lucide-react";
+import { AdBanner } from "./AdBanner";
 
 // 미니 캘린더용 인라인 mock (면접·코딩테스트·공고 마감 일정)
 const WEEK_DAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -502,6 +503,9 @@ export function LandingPage() {
                 </button>
               </div>
             </div>
+
+            {/* 인피드 광고 (추후 Google AdSense 연동) */}
+            <AdBanner />
 
             {/* Community posts */}
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
