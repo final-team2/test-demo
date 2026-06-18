@@ -142,6 +142,10 @@ export function CalendarPage() {
     setNotifications(n => ({ ...n, [id]: !n[id] }));
   };
 
+  // 항목 클릭 시 이동: 공고 → 공고 상세, 교육 → 교육센터
+  const goEvent = (e: { id: string }) => navigate(calType === "edu" ? "/education" : `/jobs/${e.id}`);
+  const endWord = calType === "edu" ? "종료" : "마감"; // 교육은 '종료', 공고는 '마감'
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
       <div className="mb-6">
@@ -154,7 +158,7 @@ export function CalendarPage() {
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 mb-6">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="w-4 h-4 text-red-500" />
-            <span className="text-sm font-semibold text-red-700">마감 임박 알림</span>
+            <span className="text-sm font-semibold text-red-700">{endWord} 임박 알림</span>
             <span className="text-xs text-red-500">D-1·D-3 자동 감지</span>
           </div>
           <div className="flex flex-col gap-2">
@@ -165,14 +169,14 @@ export function CalendarPage() {
                 <div
                   key={e.id}
                   className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-red-100 cursor-pointer hover:border-red-300 transition-colors"
-                  onClick={() => navigate(`/jobs/${e.id}`)}
+                  onClick={() => goEvent(e)}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: e.color }} />
                     <div>
                       <div className="text-sm font-medium text-gray-900">{e.company} · {e.title}</div>
                       <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                        <Clock className="w-3 h-3" />마감: {e.end}
+                        <Clock className="w-3 h-3" />{endWord}: {e.end}
                       </div>
                     </div>
                   </div>
@@ -234,7 +238,7 @@ export function CalendarPage() {
                     <div
                       key={day}
                       onClick={() => setSelected(isSelected ? null : dateStr)}
-                      className={`cursor-pointer rounded-lg border transition-all min-h-[64px] flex flex-col ${
+                      className={`group relative cursor-pointer rounded-lg border transition-all min-h-[64px] flex flex-col hover:z-30 ${
                         isSelected ? "bg-primary/10 border-primary/40"
                         : isToday ? "bg-indigo-50 border-primary/20"
                         : "border-transparent hover:bg-secondary"
@@ -258,12 +262,27 @@ export function CalendarPage() {
                       {/* 일정 점 표시 */}
                       <div className="flex flex-wrap items-center gap-1 px-1.5 pb-1.5 mt-auto">
                         {dayEvents.slice(0, 4).map(e => (
-                          <span key={e.id} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: e.color }} title={`${e.company} · ${e.title}`} />
+                          <span key={e.id} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: e.color }} />
                         ))}
                         {dayEvents.length > 4 && (
                           <span className="text-[9px] text-muted-foreground leading-none">+{dayEvents.length - 4}</span>
                         )}
                       </div>
+
+                      {/* 호버 툴팁: 해당 날짜 일정 내용 */}
+                      {dayEvents.length > 0 && (
+                        <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-40 hidden group-hover:block w-48 rounded-lg border border-border bg-white p-2.5 text-left shadow-lg">
+                          <div className="text-[11px] font-semibold text-foreground mb-1.5">{month + 1}월 {day}일 · {dayEvents.length}건</div>
+                          <div className="flex flex-col gap-1">
+                            {dayEvents.map(e => (
+                              <div key={e.id} className="flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: e.color }} />
+                                <span className="text-[11px] text-foreground truncate">{e.company} · {e.title}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -274,7 +293,8 @@ export function CalendarPage() {
 
         {/* Sidebar */}
         <div className="flex flex-col gap-4">
-          {/* 학습 진행도 (교육센터 연동) */}
+          {/* 학습 진행도 (교육센터 연동) — 교육 캘린더에서만 표시 */}
+          {calType === "edu" && (
           <div className="rounded-2xl border border-border bg-card p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -318,13 +338,14 @@ export function CalendarPage() {
               })}
             </div>
           </div>
+          )}
 
           {/* Upcoming deadlines */}
           {upcomingEvents.length > 0 && (
             <div className="rounded-2xl border border-orange-200 bg-orange-50 p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Bell className="w-4 h-4 text-orange-500" />
-                <span className="text-sm font-semibold text-foreground">7일 내 마감</span>
+                <span className="text-sm font-semibold text-foreground">7일 내 {endWord}</span>
               </div>
               <div className="flex flex-col gap-2">
                 {upcomingEvents.map(e => {
@@ -334,7 +355,7 @@ export function CalendarPage() {
                     <div
                       key={e.id}
                       className="flex items-center justify-between bg-white rounded-xl px-3 py-2.5 border border-orange-100 cursor-pointer hover:border-orange-300 transition-colors"
-                      onClick={() => navigate(`/jobs/${e.id}`)}
+                      onClick={() => goEvent(e)}
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: e.color }} />
@@ -374,7 +395,7 @@ export function CalendarPage() {
                   return (
                     <div
                       key={e.id}
-                      onClick={() => navigate(`/jobs/${e.id}`)}
+                      onClick={() => goEvent(e)}
                       className="flex items-center gap-2.5 cursor-pointer hover:bg-secondary rounded-lg p-2 -mx-2 transition-colors group"
                     >
                       <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: e.color }} />
