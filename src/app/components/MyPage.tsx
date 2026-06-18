@@ -664,16 +664,16 @@ function PaymentTab() {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-type Exp = { tech: string; years: number };
+type Exp = { tech: string; years: number; months: number };
 
 function CareerTab() {
   const [role, setRole] = useState(CAREER_ROLES[0]);
   const [purpose, setPurpose] = useState(CAREER_PURPOSES[0]);
-  // 직군과 분리된 '기술별 경력' (예: React 1년, Java 3년, Python 5년)
+  // 직군과 분리된 '기술별 경력' (예: React 1년, Java 3년 6개월, Python 5년)
   const [exps, setExps] = useState<Exp[]>([
-    { tech: "React", years: 1 },
-    { tech: "Java", years: 3 },
-    { tech: "Python", years: 5 },
+    { tech: "React", years: 1, months: 0 },
+    { tech: "Java", years: 3, months: 6 },
+    { tech: "Python", years: 5, months: 0 },
   ]);
   const [langs, setLangs] = useState<string[]>(["JavaScript", "TypeScript", "React"]);
   const [saved, setSaved] = useState(false);
@@ -681,11 +681,12 @@ function CareerTab() {
   const toggleLang = (l: string) => setLangs(p => p.includes(l) ? p.filter(x => x !== l) : [...p, l]);
   const updateExp = (i: number, field: keyof Exp, value: string | number) =>
     setExps(p => p.map((e, idx) => idx === i ? { ...e, [field]: value } : e));
-  const addExp = () => setExps(p => [...p, { tech: "", years: 0 }]);
+  const addExp = () => setExps(p => [...p, { tech: "", years: 0, months: 0 }]);
   const removeExp = (i: number) => setExps(p => p.filter((_, idx) => idx !== i));
 
   const selectCls = "w-full px-3 py-2.5 rounded-xl bg-secondary border border-border text-sm text-foreground focus:outline-none focus:border-primary/60";
-  const expSummary = exps.filter(e => e.tech.trim()).map(e => `${e.tech} ${e.years}년`).join(", ");
+  const fmtExp = (e: Exp) => `${e.tech} ${e.years}년${e.months ? ` ${e.months}개월` : ""}`;
+  const expSummary = exps.filter(e => e.tech.trim()).map(fmtExp).join(", ");
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6">
@@ -728,9 +729,17 @@ function CareerTab() {
                 <input
                   type="number" min={0} max={40} value={e.years}
                   onChange={ev => updateExp(i, "years", Number(ev.target.value))}
-                  className="w-16 px-2 py-2 rounded-xl bg-secondary border border-border text-sm text-foreground text-center focus:outline-none focus:border-primary/60"
+                  className="w-14 px-2 py-2 rounded-xl bg-secondary border border-border text-sm text-foreground text-center focus:outline-none focus:border-primary/60"
                 />
                 <span className="text-sm text-muted-foreground">년</span>
+                <select
+                  value={e.months}
+                  onChange={ev => updateExp(i, "months", Number(ev.target.value))}
+                  className="px-1.5 py-2 rounded-xl bg-secondary border border-border text-sm text-foreground focus:outline-none focus:border-primary/60"
+                >
+                  {Array.from({ length: 12 }, (_, m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <span className="text-sm text-muted-foreground">개월</span>
               </div>
               <button onClick={() => removeExp(i)} title="삭제"
                 className="p-2 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors shrink-0">

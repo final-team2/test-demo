@@ -249,19 +249,6 @@ export function Root() {
                   <History className="w-5 h-5" />
                 </button>
 
-                {/* 대시보드 */}
-                <button
-                  onClick={() => navigate("/dashboard")}
-                  className={`hidden md:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-                    location.pathname === "/dashboard"
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-                  }`}
-                >
-                  <LayoutDashboard className="w-4 h-4" />
-                  대시보드
-                </button>
-
                 {/* Profile */}
                 <div className="relative">
                   <button
@@ -284,7 +271,6 @@ export function Root() {
                         { icon: FileText, label: "이력서 관리", href: "/resume", show: true },
                         { icon: History, label: "면접 기록", href: "/history", show: true },
                         { icon: Shield, label: "관리자 패널", href: "/admin", show: isAdmin },
-                        { icon: Settings, label: "설정", href: "/mypage", show: true },
                       ].filter(item => item.show).map(({ icon: Icon, label, href }) => (
                         <button
                           key={label}
@@ -357,9 +343,6 @@ export function Root() {
               </Link>
             ))}
             <div className="border-t border-border mt-2 pt-2 flex flex-col gap-1">
-              <Link to="/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm hover:bg-secondary transition-colors text-foreground">
-                <LayoutDashboard className="w-4 h-4" /> 대시보드
-              </Link>
               <Link to="/mypage" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm hover:bg-secondary transition-colors text-foreground">
                 <User className="w-4 h-4" /> 마이페이지
               </Link>

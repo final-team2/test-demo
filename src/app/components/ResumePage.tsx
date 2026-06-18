@@ -13,7 +13,10 @@ interface Education {
 }
 interface Career {
   company: string; role: string; period: string; desc: string;
+  employmentType: string; team: string; current: boolean;
 }
+
+const EMPLOYMENT_TYPES = ["정규직", "계약직", "인턴", "프리랜서", "파견직"];
 interface Certification {
   name: string; issuer: string; date: string;
 }
@@ -41,7 +44,7 @@ const INITIAL_RESUME: ResumeData = {
   name: "카카오 지원용",
   basic: { name: "김지수", email: "jisu@example.com", phone: "010-1234-5678", address: "서울 강남구", github: "github.com/jisu-kim", portfolio: "" },
   educations: [{ school: "한국대학교", major: "컴퓨터공학과", grade: "3.8/4.5", period: "2020.03 ~ 2026.02" }],
-  careers: [{ company: "(주)스타트업A", role: "프론트엔드 인턴", period: "2025.07 ~ 2025.12", desc: "React 기반 대시보드 개발 및 유지보수" }],
+  careers: [{ company: "(주)스타트업A", role: "프론트엔드 인턴", period: "2025.07 ~ 2025.12", desc: "React 기반 대시보드 개발 및 유지보수", employmentType: "인턴", team: "웹서비스팀", current: false }],
   certifications: [{ name: "정보처리기사", issuer: "한국산업인력공단", date: "2025.08" }],
   skills: ["React", "TypeScript", "Next.js", "Tailwind CSS", "Node.js"],
   coverText: "React와 TypeScript를 주력으로 사용하며, 사용자 경험을 최우선으로 생각하는 프론트엔드 개발자입니다.",
@@ -146,9 +149,9 @@ function generatePDF(resume: ResumeData) {
   if (resume.careers.length > 0) {
     section("경력");
     resume.careers.forEach(c => {
-      line(`${c.company} — ${c.role}`, 10, true);
+      line(`${c.company} — ${c.role}${c.employmentType ? " (" + c.employmentType + ")" : ""}`, 10, true);
       y -= 1;
-      line(c.period, 9, false, "#555");
+      line(`${c.current ? c.period + " (재직중)" : c.period}${c.team ? "  ·  " + c.team : ""}`, 9, false, "#555");
       if (c.desc) {
         doc.setFontSize(9);
         doc.setFont("helvetica", "normal");
@@ -235,7 +238,7 @@ function AiSuggestionPanel({
 
         <div className="p-5">
           <p className="text-sm text-muted-foreground mb-4">
-            입력된 경력·스킬 정보를 기반으로 Claude AI가 {sectionLabel} 항목을 자동 완성해드립니다.
+            입력된 경력·스킬 정보를 기반으로 DevReady AI가 {sectionLabel} 항목을 자동 완성해드립니다.
           </p>
 
           {!suggestion && (
@@ -247,7 +250,7 @@ function AiSuggestionPanel({
               {loading ? (
                 <>
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Claude AI 작성 중...
+                  DevReady AI 작성 중...
                 </>
               ) : (
                 <>
@@ -261,7 +264,7 @@ function AiSuggestionPanel({
             <div className="space-y-4">
               <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
                 <div className="flex items-center gap-1.5 mb-2 text-xs text-primary font-medium">
-                  <Sparkles className="w-3.5 h-3.5" />Claude AI 제안
+                  <Sparkles className="w-3.5 h-3.5" />DevReady AI 제안
                 </div>
                 <div className="text-sm text-foreground leading-relaxed max-h-48 overflow-y-auto">
                   {sectionKey === "coverText" && (suggestion as any).coverText && (
@@ -601,7 +604,7 @@ export function ResumePage() {
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <h2 className="font-semibold text-foreground hidden lg:block">경력</h2>
-                <button onClick={() => updateResume({ careers: [...resume.careers, { company: "", role: "", period: "", desc: "" }] })}
+                <button onClick={() => updateResume({ careers: [...resume.careers, { company: "", role: "", period: "", desc: "", employmentType: "정규직", team: "", current: false }] })}
                   className="flex items-center gap-1 text-sm text-primary hover:text-indigo-600"><Plus className="w-4 h-4" />추가</button>
               </div>
               {resume.careers.length === 0 && (
@@ -610,8 +613,8 @@ export function ResumePage() {
               {resume.careers.map((career, i) => (
                 <div key={i} className="rounded-xl bg-secondary border border-border p-4 flex flex-col gap-3">
                   <div className="grid grid-cols-2 gap-3">
-                    {[["company", "회사명"], ["role", "직책/포지션"], ["period", "근무기간"]].map(([k, l]) => (
-                      <div key={k} className={k === "period" ? "col-span-2" : ""}>
+                    {[["company", "회사명"], ["role", "직책/포지션"]].map(([k, l]) => (
+                      <div key={k}>
                         <label className="text-xs text-muted-foreground block mb-1">{l}</label>
                         <input
                           value={(career as any)[k]}
@@ -620,7 +623,49 @@ export function ResumePage() {
                         />
                       </div>
                     ))}
+                    {/* 고용 형태 (맞춤 진로 변경에 없는 항목) */}
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">고용 형태</label>
+                      <select
+                        value={career.employmentType}
+                        onChange={e => updateResume({ careers: resume.careers.map((x, j) => j === i ? { ...x, employmentType: e.target.value } : x) })}
+                        className="w-full px-3 py-2 rounded-lg bg-card border border-border text-sm text-foreground focus:outline-none focus:border-primary/60"
+                      >
+                        {EMPLOYMENT_TYPES.map(t => <option key={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    {/* 부서/팀 (맞춤 진로 변경에 없는 항목) */}
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">부서/팀</label>
+                      <input
+                        value={career.team}
+                        onChange={e => updateResume({ careers: resume.careers.map((x, j) => j === i ? { ...x, team: e.target.value } : x) })}
+                        placeholder="예: 프론트엔드팀"
+                        className="w-full px-3 py-2 rounded-lg bg-card border border-border text-sm text-foreground focus:outline-none focus:border-primary/60 placeholder:text-muted-foreground"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-xs text-muted-foreground block mb-1">근무기간</label>
+                      <input
+                        value={career.period}
+                        disabled={career.current}
+                        onChange={e => updateResume({ careers: resume.careers.map((x, j) => j === i ? { ...x, period: e.target.value } : x) })}
+                        placeholder="예: 2025.07 ~ 2025.12"
+                        className="w-full px-3 py-2 rounded-lg bg-card border border-border text-sm text-foreground focus:outline-none focus:border-primary/60 disabled:opacity-50 placeholder:text-muted-foreground"
+                      />
+                    </div>
                   </div>
+                  {/* 재직 중 (맞춤 진로 변경에 없는 항목) */}
+                  <label className="flex items-center gap-2 cursor-pointer self-start">
+                    <button
+                      type="button"
+                      onClick={() => updateResume({ careers: resume.careers.map((x, j) => j === i ? { ...x, current: !x.current } : x) })}
+                      className={`w-9 h-5 rounded-full transition-colors relative ${career.current ? "bg-primary" : "bg-border"}`}
+                    >
+                      <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${career.current ? "left-4" : "left-0.5"}`} />
+                    </button>
+                    <span className="text-xs text-foreground">현재 재직 중</span>
+                  </label>
                   <div>
                     <label className="text-xs text-muted-foreground block mb-1">주요 업무 및 성과</label>
                     <textarea
