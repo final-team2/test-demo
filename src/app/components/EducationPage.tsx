@@ -6,6 +6,7 @@ import {
   CheckCircle2, Lock, Play, BarChart3, Terminal, X, RefreshCw
 } from "lucide-react";
 import { AIRecommendCard } from "./AIRecommendCard";
+import { useAuthGuard } from "../auth";
 
 const CATEGORIES = [
   { id: "all", label: "전체" },
@@ -128,6 +129,7 @@ const ALL_QUIZZES: Quiz[] = [
 
 export function EducationPage() {
   const navigate = useNavigate();
+  const guard = useAuthGuard(); // 비로그인 시 로그인 창으로
   const [cat, setCat] = useState("all");
   const [quizActive, setQuizActive] = useState(false);
   const [quizIdx, setQuizIdx] = useState(0);
@@ -322,7 +324,7 @@ export function EducationPage() {
           <h1 className="text-3xl font-bold text-foreground">교육 센터</h1>
           <p className="text-sm text-muted-foreground mt-1">취약 개념부터 심화까지, AI가 맞춤 학습 경로를 추천합니다</p>
         </div>
-        <button onClick={() => setQuizActive(true)}
+        <button onClick={() => guard(() => setQuizActive(true))}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white hover:bg-indigo-600 transition-colors text-sm shadow-sm"
           style={{ boxShadow: "0 4px 16px rgba(99,102,241,0.25)" }}>
           <Sparkles className="w-4 h-4" />AI 퀴즈 시작
@@ -366,7 +368,7 @@ export function EducationPage() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {weakConcepts.map(w => (
-            <button key={w.title} onClick={() => setQuizActive(true)} className="text-left p-3 rounded-xl bg-white border border-orange-100 hover:border-orange-300 transition-colors group">
+            <button key={w.title} onClick={() => guard(() => setQuizActive(true))} className="text-left p-3 rounded-xl bg-white border border-orange-100 hover:border-orange-300 transition-colors group">
               <div className="text-sm font-medium text-foreground mb-1 line-clamp-1">{w.title}</div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">{w.category}</span>
@@ -388,7 +390,7 @@ export function EducationPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           {QUIZ_TOPICS.map(t => (
-            <button key={t.label} onClick={() => setQuizActive(true)}
+            <button key={t.label} onClick={() => guard(() => setQuizActive(true))}
               className="px-3 py-1.5 rounded-full bg-white border border-primary/20 text-sm text-primary hover:bg-primary hover:text-white transition-colors">
               {t.label}
             </button>
@@ -405,7 +407,7 @@ export function EducationPage() {
 
       {/* Coding test entry */}
       <div
-        onClick={() => navigate("/education/coding-test")}
+        onClick={() => guard(() => navigate("/education/coding-test"))}
         className="rounded-2xl border border-gray-200 bg-gradient-to-r from-gray-900 to-gray-800 p-5 mb-6 cursor-pointer hover:shadow-lg transition-shadow group"
       >
         <div className="flex items-center justify-between">

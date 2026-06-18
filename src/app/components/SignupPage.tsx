@@ -4,6 +4,7 @@ import {
   Eye, EyeOff, CheckCircle2,
   ChevronRight, ChevronDown, Mail, RefreshCw, Check, X
 } from "lucide-react";
+import { setAuthed } from "../auth";
 
 type Step = "info" | "terms" | "verify" | "done";
 
@@ -122,7 +123,7 @@ export function SignupPage() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">가입이 완료됐습니다!</h1>
           <p className="text-gray-500 mb-8">DevReady와 함께 합격의 여정을 시작하세요.</p>
-          <button onClick={() => navigate("/dashboard")}
+          <button onClick={() => { setAuthed(true); navigate("/dashboard"); }}
             className="w-full py-3 rounded-xl text-white font-semibold hover:opacity-90 transition-opacity" style={{ backgroundColor: "#6C63FF" }}>
             서비스 시작하기
           </button>
@@ -154,7 +155,7 @@ export function SignupPage() {
             <>
               <div className="flex flex-col gap-2 mb-4">
                 {SNS_BUTTONS.map(s => (
-                  <button key={s.id} onClick={() => navigate("/dashboard")}
+                  <button key={s.id} onClick={() => { setAuthed(true); navigate("/dashboard"); }}
                     className="flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
                     style={{ background: s.bg, color: s.text, border: (s as any).border ? "1px solid #dde1e7" : "none" }}>
                     {s.logo}{s.label}

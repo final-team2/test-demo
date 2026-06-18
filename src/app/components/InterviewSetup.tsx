@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
+import { isAuthed } from "../auth";
 import {
   Code2, Server, Layout, Globe, Terminal, User, Briefcase,
   Brain, MessageCircle, Upload, ChevronRight, CheckCircle2,
@@ -69,6 +70,11 @@ export function InterviewSetup() {
     company: (location.state as any).company,
     title: (location.state as any).title,
   } : null;
+
+  // 비로그인 시 로그인 창으로 (공고·마이페이지 등에서 직접 진입하는 경우 포함)
+  useEffect(() => {
+    if (!isAuthed()) navigate("/auth");
+  }, [navigate]);
 
   const [step, setStep] = useState(0);
   const [job, setJob] = useState(jobContext ? "frontend" : "");

@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router";
 import { AIRecommendCard } from "./AIRecommendCard";
+import { isAuthed } from "../auth";
 import {
   BrainCircuit, CheckCircle2, Star, Play, Clock, Users,
   Mic, Video, FileText, BarChart3, Shield, Zap, ChevronRight,
@@ -85,6 +86,7 @@ export function InterviewLanding() {
   const navigate = useNavigate();
 
   function handleSelectPlan(planId: string) {
+    if (!isAuthed()) { navigate("/auth"); return; } // 비로그인 시 로그인 창으로
     navigate("/interview/payment", { state: { planId } });
   }
 

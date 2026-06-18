@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { JOBS_DATA } from "./JobsPage";
 import { ApplicationForm } from "./ApplicationForm";
+import { useAuthGuard } from "../auth";
 
 function MiniBar({ label, pct, color }: { label: string; pct: number; color: string }) {
   return (
@@ -24,6 +25,7 @@ const BAR_COLORS = ["#6C63FF", "#3B82F6", "#10B981", "#F59E0B"];
 export function JobDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const guard = useAuthGuard(); // 비로그인 시 로그인 창으로
   const [wished, setWished] = useState(false);
   const [applied, setApplied] = useState(false);
   const [showApplicationForm, setShowApplicationForm] = useState(false);
@@ -309,7 +311,7 @@ export function JobDetailPage() {
             ) : (
               <>
                 <button
-                  onClick={() => setShowApplicationForm(true)}
+                  onClick={() => guard(() => setShowApplicationForm(true))}
                   className="w-full py-3 rounded-xl bg-primary text-white font-medium hover:bg-indigo-600 transition-colors mb-3"
                   style={{ boxShadow: "0 4px 16px rgba(99,102,241,0.25)" }}
                 >

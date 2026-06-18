@@ -4,6 +4,7 @@ import {
   Eye, EyeOff, ArrowLeft, Scan, CheckCircle2,
   Mail, RefreshCw, Check, X, KeyRound, ShieldCheck, User
 } from "lucide-react";
+import { setAuthed } from "../auth";
 
 type Mode = "login" | "findId" | "resetPw" | "face";
 
@@ -101,10 +102,12 @@ export function AuthPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthed(true);
     navigate("/dashboard");
   };
 
   function handleQuickLogin(role: "user" | "admin") {
+    setAuthed(true);
     navigate(role === "admin" ? "/admin" : "/dashboard");
   }
 
@@ -287,7 +290,7 @@ export function AuthPage() {
               <button onClick={goBack} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4">
                 <ArrowLeft className="w-4 h-4" /> 로그인으로
               </button>
-              <FaceIDPanel onSuccess={() => navigate("/dashboard")} />
+              <FaceIDPanel onSuccess={() => { setAuthed(true); navigate("/dashboard"); }} />
             </>
           )}
 
@@ -337,7 +340,7 @@ export function AuthPage() {
               <div className="flex flex-col gap-2.5 mb-5">
                 {SNS_BUTTONS.map(s => (
                   <button key={s.id}
-                    onClick={() => navigate("/dashboard")}
+                    onClick={() => { setAuthed(true); navigate("/dashboard"); }}
                     className="flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-90 active:scale-[0.98]"
                     style={{ background: s.bg, color: s.text, border: (s as any).border ? "1px solid #dde1e7" : "none" }}>
                     {s.logo}{s.label}

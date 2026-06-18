@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { AnnouncementBanner } from "./AnnouncementBanner";
 import { ChatbotWidget } from "./ChatbotWidget";
+import { isAuthed, setAuthed } from "../auth";
 
 const NAV_MAIN = [
   {
@@ -88,7 +89,7 @@ export function Root() {
   const isLanding = location.pathname === "/";
   const isAuth = location.pathname === "/auth";
   const isAdminPage = location.pathname.startsWith("/admin");
-  const isLoggedIn = !isLanding && !isAuth;
+  const isLoggedIn = isAuthed(); // 실제 로그인 여부(localStorage 플래그)로 판정
   const showNav = !isAuth; // nav는 auth 페이지 외 모두 표시
 
   // Simulate admin role - in production, this would come from auth context
@@ -283,7 +284,7 @@ export function Root() {
                       ))}
                       <div className="border-t border-border mt-1 pt-1">
                         <button
-                          onClick={() => navigate("/")}
+                          onClick={() => { setAuthed(false); setProfileOpen(false); navigate("/"); }}
                           className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
                         >
                           <LogOut className="w-4 h-4" />
