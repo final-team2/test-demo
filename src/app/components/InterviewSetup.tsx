@@ -7,7 +7,7 @@ import {
   Factory, Rocket, Network, Globe2, CreditCard, Lock, Video, Mic, Play
 } from "lucide-react";
 
-const STEPS = ["이용 동의", "이력서·질문 수", "면접 환경", "장비 점검", "설정 요약"];
+const STEPS = ["이용 동의", "이력서·질문 수", "면접 환경", "설정 요약", "장비 점검"];
 
 const JOBS = [
   { id: "frontend", icon: Layout, label: "프론트엔드", desc: "React, Vue, CSS" },
@@ -338,8 +338,8 @@ export function InterviewSetup() {
             </div>
           )}
 
-          {/* Step 4: 면접 설정 요약 (크게) */}
-          {step === 4 && (
+          {/* Step 3: 면접 설정 요약 (크게) */}
+          {step === 3 && (
             <div>
               <h2 className="font-semibold text-foreground mb-2">면접 설정 요약</h2>
               <p className="text-sm text-muted-foreground mb-6">아래 설정으로 면접을 시작합니다. 확인 후 <span className="text-foreground font-medium">면접 시작</span>을 눌러주세요.</p>
@@ -360,8 +360,8 @@ export function InterviewSetup() {
             </div>
           )}
 
-          {/* Step 3: 장비 점검 (카메라·음성) */}
-          {step === 3 && (
+          {/* Step 4: 장비 점검 (카메라·음성) */}
+          {step === 4 && (
             <div>
               <h2 className="font-semibold text-foreground mb-2">카메라·음성 점검</h2>
               <p className="text-sm text-muted-foreground mb-5">면접 전 카메라와 마이크가 정상 동작하는지 확인하세요.</p>
