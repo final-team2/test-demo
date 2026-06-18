@@ -206,6 +206,7 @@ export function InterviewSession() {
   const interviewer = config.interviewer || "normal";
   const count = config.count || 5;
   const coverText = config.coverText || "";
+  const videoEnabled = config.videoEnabled ?? false; // 영상 동의 여부 (기본: 음성 면접)
 
   // Build question list
   const questionList = (() => {
@@ -484,7 +485,7 @@ export function InterviewSession() {
             </div>
             <h2 className="text-2xl font-bold mb-2">잠시 후 면접이 시작됩니다</h2>
             <p className="text-white/60 text-sm leading-relaxed">
-              이 시간 동안의 음성·표정은 <span className="text-white font-medium">점수에 반영되지 않습니다.</span><br />
+              이 시간 동안의 {videoEnabled ? "음성·표정은" : "음성은"} <span className="text-white font-medium">점수에 반영되지 않습니다.</span><br />
               지금 말을 시작하면(약 {VOICE_DB_THRESHOLD}dB 이상) 바로 면접이 시작됩니다.
             </p>
           </div>
@@ -528,14 +529,16 @@ export function InterviewSession() {
             </div>
           )}
 
-          {/* Camera toggle */}
-          <button
-            onClick={toggleCamera}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors border ${cameraOn ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-secondary text-muted-foreground hover:text-foreground"}`}
-          >
-            {cameraOn ? <Video className="w-3.5 h-3.5" /> : <VideoOff className="w-3.5 h-3.5" />}
-            {cameraOn ? "카메라 ON" : "카메라 OFF"}
-          </button>
+          {/* Camera toggle — 영상 면접일 때만 */}
+          {videoEnabled && (
+            <button
+              onClick={toggleCamera}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors border ${cameraOn ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-secondary text-muted-foreground hover:text-foreground"}`}
+            >
+              {cameraOn ? <Video className="w-3.5 h-3.5" /> : <VideoOff className="w-3.5 h-3.5" />}
+              {cameraOn ? "카메라 ON" : "카메라 OFF"}
+            </button>
+          )}
 
           {/* Mode toggle */}
           <div className="flex rounded-lg bg-secondary p-1 gap-1">
@@ -681,46 +684,57 @@ export function InterviewSession() {
 
         {/* Camera / Analysis panel */}
         <div className="hidden lg:flex flex-col gap-3 w-56 p-4 border-l border-border shrink-0">
-          {/* Camera */}
-          <div className="rounded-xl overflow-hidden aspect-video bg-secondary flex items-center justify-center border border-border relative">
-            {cameraOn ? (
-              <video ref={videoRef} className="w-full h-full object-cover" muted playsInline />
-            ) : (
-              <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                <VideoOff className="w-6 h-6" />
-                <span className="text-xs">카메라 꺼짐</span>
-              </div>
-            )}
-            {cameraOn && (
-              <div className="absolute top-1.5 right-1.5">
-                <span className="flex items-center gap-1 text-[10px] text-white bg-red-500 rounded px-1.5 py-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />REC
-                </span>
-              </div>
-            )}
-          </div>
-
-          {cameraOn && (
+          {videoEnabled ? (
             <>
-              <div className="text-xs text-muted-foreground text-center">face-api.js 분석 활성화</div>
-              <div className="flex flex-col gap-2.5">
-                {[
-                  { label: "시선 안정", value: gazeStability, icon: Eye, color: "#6366F1" },
-                  { label: "미소 지수", value: smileIndex, icon: Smile, color: "#10B981" },
-                  { label: "자신감", value: confidence, icon: Zap, color: "#F59E0B" },
-                ].map(({ label, value, icon: Icon, color }) => (
-                  <div key={label}>
-                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                      <span className="flex items-center gap-1"><Icon className="w-3 h-3" />{label}</span>
-                      <span style={{ fontFamily: "monospace" }}>{Math.round(value)}%</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-                      <div className="h-1.5 rounded-full transition-all duration-500" style={{ width: `${value}%`, backgroundColor: color }} />
-                    </div>
+              {/* Camera */}
+              <div className="rounded-xl overflow-hidden aspect-video bg-secondary flex items-center justify-center border border-border relative">
+                {cameraOn ? (
+                  <video ref={videoRef} className="w-full h-full object-cover" muted playsInline />
+                ) : (
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <VideoOff className="w-6 h-6" />
+                    <span className="text-xs">카메라 꺼짐</span>
                   </div>
-                ))}
+                )}
+                {cameraOn && (
+                  <div className="absolute top-1.5 right-1.5">
+                    <span className="flex items-center gap-1 text-[10px] text-white bg-red-500 rounded px-1.5 py-0.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />REC
+                    </span>
+                  </div>
+                )}
               </div>
+
+              {cameraOn && (
+                <>
+                  <div className="text-xs text-muted-foreground text-center">face-api.js 분석 활성화</div>
+                  <div className="flex flex-col gap-2.5">
+                    {[
+                      { label: "시선 안정", value: gazeStability, icon: Eye, color: "#6366F1" },
+                      { label: "미소 지수", value: smileIndex, icon: Smile, color: "#10B981" },
+                      { label: "자신감", value: confidence, icon: Zap, color: "#F59E0B" },
+                    ].map(({ label, value, icon: Icon, color }) => (
+                      <div key={label}>
+                        <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                          <span className="flex items-center gap-1"><Icon className="w-3 h-3" />{label}</span>
+                          <span style={{ fontFamily: "monospace" }}>{Math.round(value)}%</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                          <div className="h-1.5 rounded-full transition-all duration-500" style={{ width: `${value}%`, backgroundColor: color }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </>
+          ) : (
+            /* 음성 면접 — 영상 분석 미사용 플레이스홀더 */
+            <div className="rounded-xl border border-border bg-secondary aspect-video flex flex-col items-center justify-center gap-2 text-center px-3">
+              <Mic className="w-6 h-6 text-primary" />
+              <span className="text-xs font-medium text-foreground">음성 면접</span>
+              <span className="text-[11px] leading-tight text-muted-foreground">영상 분석 미사용<br />음성으로만 진행됩니다</span>
+            </div>
           )}
 
           {/* WPM tracker during answering */}

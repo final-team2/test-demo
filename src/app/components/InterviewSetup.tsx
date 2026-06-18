@@ -47,7 +47,7 @@ const INTERVIEWER_TYPES = [
 
 const CONSENT_ITEMS = [
   { id: "ai_data", label: "AI 학습 목적 답변 데이터 활용", required: true, detail: "답변 내용은 서비스 품질 개선에 익명으로 사용됩니다." },
-  { id: "video_record", label: "면접 영상 분석 (표정·시선 분석용)", required: true, detail: "Face-api.js를 통한 실시간 표정·시선 분석에 동의합니다." },
+  { id: "video_record", label: "면접 영상 분석 (선택)", required: false, detail: "동의하면 카메라로 표정·시선을 분석하는 '영상 면접'으로, 미동의 시 카메라 없이 '음성 면접'으로 진행됩니다." },
   { id: "voice_analyze", label: "음성 STT 및 분석 데이터 활용", required: true, detail: "Web Speech API로 음성을 텍스트로 변환하고 분석합니다." },
   { id: "marketing", label: "서비스 개선을 위한 익명 통계 활용", required: false, detail: "익명 처리된 통계 데이터를 서비스 개선에 활용합니다." },
 ];
@@ -87,6 +87,7 @@ export function InterviewSetup() {
   const requiredIds = CONSENT_ITEMS.filter(c => c.required).map(c => c.id);
   const consentOk = requiredIds.every(id => consents[id]);
   const allChecked = CONSENT_ITEMS.every(c => consents[c.id]);
+  const videoEnabled = consents.video_record; // 영상 동의 → 영상 면접 / 미동의 → 음성 면접
 
   const canNext = [
     consentOk,
@@ -106,7 +107,7 @@ export function InterviewSetup() {
       setStep(step + 1);
     } else {
       navigate("/interview/session", {
-        state: { job, level, type, companyType, interviewer, count, coverText, resume, jobContext },
+        state: { job, level, type, companyType, interviewer, count, coverText, resume, jobContext, videoEnabled },
       });
     }
   };
@@ -218,6 +219,21 @@ export function InterviewSetup() {
                   </div>
                 ))}
               </div>
+
+              {/* 선택된 방식 안내 (실시간) */}
+              <div className={`mt-4 flex items-start gap-2.5 p-3.5 rounded-xl border text-sm transition-colors ${videoEnabled ? "bg-primary/5 border-primary/20" : "bg-secondary border-border"}`}>
+                {videoEnabled
+                  ? <Video className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  : <Mic className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />}
+                <div>
+                  <span className="font-medium text-foreground">선택된 방식: {videoEnabled ? "영상 면접" : "음성 면접"}</span>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {videoEnabled
+                      ? "카메라로 표정·시선까지 분석합니다."
+                      : "카메라 없이 음성으로만 진행합니다."}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
@@ -315,6 +331,7 @@ export function InterviewSetup() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
                   ["이력서", RESUMES.find(r => r.id === resume)?.title ?? "-"],
+                  ["면접 방식", videoEnabled ? "영상 면접" : "음성 면접"],
                   ["면접 유형", TYPES.find(t => t.id === type)?.label ?? "-"],
                   ["회사 유형", COMPANY_TYPES.find(c => c.id === companyType)?.label ?? "-"],
                   ["면접관", INTERVIEWER_TYPES.find(i => i.id === interviewer)?.label ?? "-"],
@@ -332,18 +349,24 @@ export function InterviewSetup() {
           {/* Step 4: 장비 점검 (카메라·음성) */}
           {step === 4 && (
             <div>
-              <h2 className="font-semibold text-foreground mb-2">카메라·음성 점검</h2>
-              <p className="text-sm text-muted-foreground mb-5">면접 전 카메라와 마이크가 정상 동작하는지 확인하세요.</p>
+              <h2 className="font-semibold text-foreground mb-2">{videoEnabled ? "카메라·음성 점검" : "마이크 점검"}</h2>
+              <p className="text-sm text-muted-foreground mb-5">
+                {videoEnabled
+                  ? "면접 전 카메라와 마이크가 정상 동작하는지 확인하세요."
+                  : "영상 미동의 — 카메라 없이 음성으로만 진행됩니다. 마이크가 정상 동작하는지 확인하세요."}
+              </p>
 
-              <div className="grid sm:grid-cols-2 gap-3 mb-4">
-                {/* 카메라 미리보기 (mock) */}
-                <div className="rounded-xl border border-border bg-gray-900 aspect-video flex flex-col items-center justify-center text-gray-400 relative overflow-hidden">
-                  <Video className="w-8 h-8 mb-2" />
-                  <span className="text-xs">카메라 미리보기</span>
-                  <span className="absolute top-2 left-2 flex items-center gap-1 text-[11px] text-green-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />정상 인식
-                  </span>
-                </div>
+              <div className={`grid gap-3 mb-4 ${videoEnabled ? "sm:grid-cols-2" : "grid-cols-1"}`}>
+                {/* 카메라 미리보기 (mock) — 영상 면접일 때만 */}
+                {videoEnabled && (
+                  <div className="rounded-xl border border-border bg-gray-900 aspect-video flex flex-col items-center justify-center text-gray-400 relative overflow-hidden">
+                    <Video className="w-8 h-8 mb-2" />
+                    <span className="text-xs">카메라 미리보기</span>
+                    <span className="absolute top-2 left-2 flex items-center gap-1 text-[11px] text-green-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />정상 인식
+                    </span>
+                  </div>
+                )}
                 {/* 음성 입력 레벨 (mock) */}
                 <div className="rounded-xl border border-border bg-secondary p-4 flex flex-col justify-center">
                   <div className="flex items-center gap-2 mb-3 text-sm text-foreground"><Mic className="w-4 h-4 text-primary" />마이크 입력</div>
@@ -356,11 +379,18 @@ export function InterviewSetup() {
                 </div>
               </div>
 
-              {/* 환경(빛) 경고 (mock) */}
-              <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs mb-4">
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>현재 주변 조도는 적절합니다. 빛이 부족하면 표정 분석 정확도가 떨어질 수 있어요.</span>
-              </div>
+              {/* 환경 안내 — 영상이면 조도(표정) 경고, 음성이면 마이크 안내 */}
+              {videoEnabled ? (
+                <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs mb-4">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>현재 주변 조도는 적절합니다. 빛이 부족하면 표정 분석 정확도가 떨어질 수 있어요.</span>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2 p-3 rounded-xl bg-secondary border border-border text-muted-foreground text-xs mb-4">
+                  <Mic className="w-4 h-4 shrink-0 mt-0.5 text-primary" />
+                  <span>영상 미동의 — 카메라 없이 음성으로만 진행됩니다. 조용한 환경에서 또렷하게 답변해주세요.</span>
+                </div>
+              )}
 
               {/* 경고문 */}
               <div className="rounded-xl bg-secondary border border-border p-4">
