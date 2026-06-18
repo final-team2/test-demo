@@ -90,67 +90,6 @@ function alertBadge(days: number) {
   return null;
 }
 
-// Build spanning event rows for each week
-type WeekEventSlot = {
-  event: typeof JOB_EVENTS[0];
-  startCol: number;   // 0-6
-  spanCols: number;   // 1-7
-  isStart: boolean;
-  isEnd: boolean;
-  slot: number;       // vertical slot index 0,1,2...
-};
-
-function buildWeekSlots(
-  weekDays: (string | null)[],  // array of 7 dateStrings or null
-  events: typeof JOB_EVENTS,
-): WeekEventSlot[] {
-  const slots: WeekEventSlot[] = [];
-  const occupiedSlots: boolean[][] = Array.from({ length: 7 }, () => []);
-
-  events.forEach(ev => {
-    // Find which columns this event occupies in this week
-    let startCol = -1;
-    let endCol = -1;
-    weekDays.forEach((d, i) => {
-      if (!d) return;
-      if (d >= ev.start && d <= ev.end) {
-        if (startCol === -1) startCol = i;
-        endCol = i;
-      }
-    });
-    if (startCol === -1) return;
-
-    // Find a free slot
-    let slot = 0;
-    while (true) {
-      let free = true;
-      for (let c = startCol; c <= endCol; c++) {
-        if (occupiedSlots[c][slot]) { free = false; break; }
-      }
-      if (free) break;
-      slot++;
-    }
-    // Mark occupied
-    for (let c = startCol; c <= endCol; c++) {
-      occupiedSlots[c][slot] = true;
-    }
-
-    const firstDay = weekDays[startCol]!;
-    const lastDay = weekDays[endCol]!;
-
-    slots.push({
-      event: ev,
-      startCol,
-      spanCols: endCol - startCol + 1,
-      isStart: firstDay === ev.start || (startCol === 0 && ev.start < firstDay),
-      isEnd: lastDay === ev.end || (endCol === 6 && ev.end > lastDay),
-      slot,
-    });
-  });
-
-  return slots;
-}
-
 export function CalendarPage() {
   const navigate = useNavigate();
   const now = new Date();
@@ -198,19 +137,10 @@ export function CalendarPage() {
     return d >= 0 && d <= 7;
   }).sort((a, b) => a.end.localeCompare(b.end));
 
-  // Selected day events
-  const selectedEvents = selected
-    ? events.filter(e => e.start <= selected && e.end >= selected)
-    : [];
-
   const toggleNotification = (id: string, ev: React.MouseEvent) => {
     ev.stopPropagation();
     setNotifications(n => ({ ...n, [id]: !n[id] }));
   };
-
-  const CELL_HEIGHT = 80; // px
-  const SLOT_HEIGHT = 18;
-  const SLOT_OFFSET = 22; // below the date number
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
@@ -286,98 +216,59 @@ export function CalendarPage() {
             ))}
           </div>
 
-          {/* Week rows with spanning event bars */}
+          {/* Week rows with event dots (메인 미니 캘린더 방식) */}
           <div className="flex flex-col gap-0.5">
-            {weeks.map((week, wi) => {
-              const weekDateStrs = week.map(day =>
-                day ? toDateStr(year, month, day) : null
-              );
-              const weekSlots = buildWeekSlots(weekDateStrs, events);
-              const maxSlot = weekSlots.length > 0 ? Math.max(...weekSlots.map(s => s.slot)) : -1;
-              const rowHeight = SLOT_OFFSET + (maxSlot + 1) * (SLOT_HEIGHT + 2) + 4;
-              const finalHeight = Math.max(CELL_HEIGHT, rowHeight);
+            {weeks.map((week, wi) => (
+              <div key={wi} className="grid grid-cols-7 gap-0.5">
+                {week.map((day, di) => {
+                  if (!day) return <div key={`e-${di}`} />;
+                  const dateStr = toDateStr(year, month, day);
+                  const isToday = isCurrentMonth && day === today;
+                  const isSelected = selected === dateStr;
+                  // 해당 날짜에 진행 중인 일정(시작~마감)을 점으로 표시
+                  const dayEvents = events.filter(e => e.start <= dateStr && e.end >= dateStr);
+                  const hasDead = events.some(e => e.end === dateStr);
+                  const days = hasDead ? daysUntil(dateStr) : null;
 
-              return (
-                <div key={wi} className="relative grid grid-cols-7" style={{ height: finalHeight }}>
-                  {/* Day cells */}
-                  {week.map((day, di) => {
-                    if (!day) return <div key={`e-${di}`} className="border border-transparent" />;
-                    const dateStr = toDateStr(year, month, day);
-                    const isToday = isCurrentMonth && day === today;
-                    const isSelected = selected === dateStr;
-                    const hasDead = events.some(e => e.end === dateStr);
-                    const days = hasDead ? daysUntil(dateStr) : null;
-
-                    return (
-                      <div
-                        key={day}
-                        onClick={() => setSelected(isSelected ? null : dateStr)}
-                        className={`cursor-pointer rounded-lg border transition-all ${
-                          isSelected ? "bg-primary/10 border-primary/40"
-                          : isToday ? "bg-indigo-50 border-primary/20"
-                          : "border-transparent hover:bg-secondary"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between px-1.5 pt-1.5">
-                          <span className={`text-xs font-medium ${
-                            isToday ? "w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center"
-                            : di === 0 ? "text-red-400"
-                            : di === 6 ? "text-blue-400"
-                            : "text-foreground"
-                          }`}>{day}</span>
-                          {days !== null && days >= 0 && days <= 3 && (
-                            <span className={`text-[9px] font-bold px-1 rounded ${
-                              days <= 1 ? "bg-red-100 text-red-600" : "bg-orange-100 text-orange-600"
-                            }`}>
-                              {days === 0 ? "D-Day" : `D-${days}`}
-                            </span>
-                          )}
-                        </div>
+                  return (
+                    <div
+                      key={day}
+                      onClick={() => setSelected(isSelected ? null : dateStr)}
+                      className={`cursor-pointer rounded-lg border transition-all min-h-[64px] flex flex-col ${
+                        isSelected ? "bg-primary/10 border-primary/40"
+                        : isToday ? "bg-indigo-50 border-primary/20"
+                        : "border-transparent hover:bg-secondary"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between px-1.5 pt-1.5">
+                        <span className={`text-xs font-medium ${
+                          isToday ? "w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center"
+                          : di === 0 ? "text-red-400"
+                          : di === 6 ? "text-blue-400"
+                          : "text-foreground"
+                        }`}>{day}</span>
+                        {days !== null && days >= 0 && days <= 3 && (
+                          <span className={`text-[9px] font-bold px-1 rounded ${
+                            days <= 1 ? "bg-red-100 text-red-600" : "bg-orange-100 text-orange-600"
+                          }`}>
+                            {days === 0 ? "D-Day" : `D-${days}`}
+                          </span>
+                        )}
                       </div>
-                    );
-                  })}
-
-                  {/* Spanning event bars (absolute) */}
-                  {weekSlots.map((slot, si) => {
-                    const left = `calc(${(slot.startCol / 7) * 100}% + 2px)`;
-                    const width = `calc(${(slot.spanCols / 7) * 100}% - 4px)`;
-                    const top = SLOT_OFFSET + slot.slot * (SLOT_HEIGHT + 2);
-                    const e = slot.event;
-                    const days = daysUntil(e.end);
-                    const badge = alertBadge(days);
-
-                    return (
-                      <div
-                        key={`${e.id}-${wi}-${si}`}
-                        className="absolute cursor-pointer hover:opacity-90 transition-opacity"
-                        style={{ left, width, top, height: SLOT_HEIGHT }}
-                        onClick={() => navigate(`/jobs/${e.id}`)}
-                      >
-                        <div
-                          className="h-full flex items-center px-2 gap-1 overflow-hidden"
-                          style={{
-                            backgroundColor: e.bg,
-                            borderRadius: slot.isStart && slot.isEnd ? 6 : slot.isStart ? "6px 0 0 6px" : slot.isEnd ? "0 6px 6px 0" : 0,
-                            borderLeft: slot.isStart ? `3px solid ${e.color}` : "none",
-                          }}
-                        >
-                          {slot.isStart && (
-                            <span className="text-[10px] font-medium truncate" style={{ color: e.textColor }}>
-                              {e.company}
-                            </span>
-                          )}
-                          {slot.isEnd && badge && (
-                            <span className={`ml-auto text-[9px] font-bold px-1 rounded shrink-0 ${badge.cls}`}>
-                              {badge.label}
-                            </span>
-                          )}
-                        </div>
+                      {/* 일정 점 표시 */}
+                      <div className="flex flex-wrap items-center gap-1 px-1.5 pb-1.5 mt-auto">
+                        {dayEvents.slice(0, 4).map(e => (
+                          <span key={e.id} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: e.color }} title={`${e.company} · ${e.title}`} />
+                        ))}
+                        {dayEvents.length > 4 && (
+                          <span className="text-[9px] text-muted-foreground leading-none">+{dayEvents.length - 4}</span>
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         </div>
 
@@ -423,47 +314,6 @@ export function CalendarPage() {
                       <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: c.color }} />
                     </div>
                   </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Selected day */}
-          <div className="rounded-2xl border border-border bg-card p-5">
-            <h3 className="font-semibold text-foreground mb-3 text-sm">
-              {selected
-                ? `${parseInt(selected.split("-")[1])}월 ${parseInt(selected.split("-")[2])}일`
-                : "날짜를 클릭하세요"}
-            </h3>
-            {selected && selectedEvents.length === 0 && (
-              <p className="text-xs text-muted-foreground">이 날 진행 중인 공고가 없습니다.</p>
-            )}
-            <div className="flex flex-col gap-2">
-              {selectedEvents.map(e => {
-                const days = daysUntil(e.end);
-                const badge = alertBadge(days);
-                return (
-                  <div
-                    key={e.id}
-                    onClick={() => navigate(`/jobs/${e.id}`)}
-                    className="p-3 rounded-xl cursor-pointer hover:shadow-sm transition-all border"
-                    style={{ borderColor: e.color, borderLeftWidth: 4 }}
-                  >
-                    <div className="flex items-start justify-between gap-1">
-                      <div>
-                        <div className="font-medium text-sm text-foreground">{e.company}</div>
-                        <div className="text-xs text-muted-foreground">{e.title}</div>
-                      </div>
-                      {badge && (
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${badge.cls}`}>
-                          {badge.label}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
-                      <Clock className="w-3 h-3" />{e.start} ~ {e.end}
-                    </div>
-                  </div>
                 );
               })}
             </div>
