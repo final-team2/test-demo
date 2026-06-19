@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Sparkles, Plus, Trash2, History, CheckCircle2,
   Eye, Download, X, Save, RotateCcw, ChevronRight,
@@ -382,6 +382,9 @@ export function ResumePage() {
 
   const resume = resumes.find(r => r.id === activeId)!;
 
+  // 게이트 플래그를 '실제 필수 충족 여부'로 동기화 (저장과 무관, 데이터 기준)
+  useEffect(() => { setResumeComplete(isRequiredFilled(resume)); }, [resume]);
+
   const updateResume = (patch: Partial<ResumeData>) => {
     setResumes(arr => arr.map(r => r.id === activeId ? { ...r, ...patch } : r));
   };
@@ -407,7 +410,6 @@ export function ResumePage() {
       data: { ...resume, educations: [...resume.educations], careers: [...resume.careers], certifications: [...resume.certifications], skills: [...resume.skills] },
     };
     setVersions(v => ({ ...v, [activeId]: [...(v[activeId] ?? []), ver] }));
-    setResumeComplete(true); // 필수 충족 저장 → 교육·면접 게이트 통과
     setSavedMsg(true);
     setTimeout(() => setSavedMsg(false), 2000);
   };

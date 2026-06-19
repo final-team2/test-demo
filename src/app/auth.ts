@@ -27,18 +27,20 @@ export function setAuthed(v: boolean): void {
 }
 
 // ── 이력서 필수 작성 완료 여부 ──
+// 키가 없으면(=이력서 미수정 상태) 기본 이력서가 필수를 충족하므로 통과(true).
+// 사용자가 이력서를 수정하면 ResumePage가 실제 충족 여부로 "1"/"0"을 기록.
 export function isResumeComplete(): boolean {
   try {
-    return localStorage.getItem(RESUME_COMPLETE_KEY) === "1";
+    const v = localStorage.getItem(RESUME_COMPLETE_KEY);
+    return v === null ? true : v === "1";
   } catch {
-    return false;
+    return true;
   }
 }
 
 export function setResumeComplete(v: boolean): void {
   try {
-    if (v) localStorage.setItem(RESUME_COMPLETE_KEY, "1");
-    else localStorage.removeItem(RESUME_COMPLETE_KEY);
+    localStorage.setItem(RESUME_COMPLETE_KEY, v ? "1" : "0");
   } catch {
     /* ignore */
   }
