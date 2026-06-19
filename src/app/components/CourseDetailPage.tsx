@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
 import {
   ChevronLeft, ChevronRight, CheckCircle2, Circle,
   BookOpen, Clock, BarChart3, Play, Code2, FileText,
-  Lock, Trophy, ChevronDown, ChevronUp, Lightbulb
+  Lock, Trophy, ChevronDown, ChevronUp, Lightbulb, X, Sparkles
 } from "lucide-react";
+import { getQuiz, grade, QuizResponse } from "../data/courseQuiz";
 
 type ChapterStatus = "done" | "current" | "locked";
 
@@ -188,23 +189,83 @@ export function CourseDetailPage() {
 
   // 완료된 챕터 추적
   const allChapters = course.units.flatMap(u => u.chapters);
-  const [completedIds, setCompletedIds] = useState<Set<number>>(
-    new Set(allChapters.slice(0, Math.floor(allChapters.length * 0.4)).map(c => c.id))
-  );
-  const [currentChapterId, setCurrentChapterId] = useState(allChapters[0]?.id ?? 1);
+
+  // 진행도 자동 저장 (localStorage) — 나갔다 와도 유지
+  const courseId = id ?? "default";
+  const STORE_KEY = `devready_course_${courseId}`;
+  const readSaved = () => { try { return JSON.parse(localStorage.getItem(STORE_KEY) || "{}"); } catch { return {}; } };
+
+  const [completedIds, setCompletedIds] = useState<Set<number>>(() => {
+    const s = readSaved();
+    return Array.isArray(s.completed)
+      ? new Set<number>(s.completed)
+      : new Set(allChapters.slice(0, Math.floor(allChapters.length * 0.4)).map(c => c.id));
+  });
+  const [currentChapterId, setCurrentChapterId] = useState<number>(() => {
+    const s = readSaved();
+    return typeof s.currentChapterId === "number" ? s.currentChapterId : (allChapters[0]?.id ?? 1);
+  });
+  const [quizResults, setQuizResults] = useState<Record<number, { type: string; correct: boolean }>>(() => {
+    const s = readSaved();
+    return s.quiz && typeof s.quiz === "object" ? s.quiz : {};
+  });
   const [openUnits, setOpenUnits] = useState<Set<number>>(new Set(course.units.map(u => u.id)));
   const [showCode, setShowCode] = useState(false);
+
+  // 단계 퀴즈 / 완료 화면 상태
+  const [quizOpen, setQuizOpen] = useState(false);
+  const [quizFeedback, setQuizFeedback] = useState<null | boolean>(null);
+  const [qSelected, setQSelected] = useState<number | null>(null);
+  const [qText, setQText] = useState("");
+  const [qCode, setQCode] = useState("");
+  const [showComplete, setShowComplete] = useState(false);
+
+  // 변경 시 자동 저장
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({ completed: [...completedIds], quiz: quizResults, currentChapterId }));
+    } catch { /* ignore */ }
+  }, [completedIds, quizResults, currentChapterId, STORE_KEY]);
 
   const currentChapter = allChapters.find(c => c.id === currentChapterId);
   const currentIdx = allChapters.findIndex(c => c.id === currentChapterId);
   const progress = Math.round((completedIds.size / allChapters.length) * 100);
 
+  const currentQuiz = currentChapter ? getQuiz(courseId, currentChapterId, currentChapter.title) : null;
+  const quizAnswerable = !currentQuiz ? false
+    : currentQuiz.type === "객관식" ? qSelected !== null
+    : currentQuiz.type === "코딩" ? qCode.trim().length > 0
+    : qText.trim().length > 0;
+
   function markDone() {
-    setCompletedIds(prev => new Set([...prev, currentChapterId]));
-    // 다음 챕터로 이동
-    if (currentIdx < allChapters.length - 1) {
-      setCurrentChapterId(allChapters[currentIdx + 1].id);
+    // 이미 완료된 챕터면 퀴즈 없이 다음으로
+    if (completedIds.has(currentChapterId)) {
+      if (currentIdx < allChapters.length - 1) setCurrentChapterId(allChapters[currentIdx + 1].id);
+      return;
     }
+    // 미완료 → 단계 퀴즈 (응답 초기화)
+    setQSelected(null);
+    setQText("");
+    setQCode(currentQuiz?.starterCode ?? "");
+    setQuizFeedback(null);
+    setQuizOpen(true);
+  }
+
+  function submitQuiz() {
+    if (!currentChapter || !currentQuiz) return;
+    const res: QuizResponse = { selected: qSelected ?? undefined, text: qText, code: qCode };
+    const ok = grade(currentQuiz, res);
+    setQuizResults(prev => ({ ...prev, [currentChapterId]: { type: currentQuiz.type, correct: ok } }));
+    setCompletedIds(prev => new Set([...prev, currentChapterId])); // 오답이어도 진행, 정확도에만 반영
+    setQuizFeedback(ok);
+  }
+
+  function proceedAfterQuiz() {
+    setQuizOpen(false);
+    setQuizFeedback(null);
+    const willAllDone = new Set([...completedIds, currentChapterId]).size === allChapters.length;
+    if (willAllDone) { setShowComplete(true); return; }
+    if (currentIdx < allChapters.length - 1) setCurrentChapterId(allChapters[currentIdx + 1].id);
   }
 
   function getStatus(chapterId: number): ChapterStatus {
@@ -360,7 +421,14 @@ export function CourseDetailPage() {
                 {/* Actions */}
                 <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
                   <button
-                    onClick={() => currentIdx > 0 && setCurrentChapterId(allChapters[currentIdx - 1].id)}
+                    onClick={() => {
+                      if (currentIdx > 0) {
+                        const prevId = allChapters[currentIdx - 1].id;
+                        setCompletedIds(prev => { const n = new Set(prev); n.delete(prevId); return n; });
+                        setQuizResults(prev => { const n = { ...prev }; delete n[prevId]; return n; });
+                        setCurrentChapterId(prevId);
+                      }
+                    }}
                     disabled={currentIdx === 0}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-colors"
                   >
@@ -402,6 +470,107 @@ export function CourseDetailPage() {
           )}
         </div>
       </div>
+
+      {/* 단계 테스트 퀴즈 모달 */}
+      {quizOpen && currentChapter && currentQuiz && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-gray-200 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0" style={{ backgroundColor: course.color + "20", color: course.color }}>{currentQuiz.type} 퀴즈</span>
+                <span className="text-sm font-semibold text-gray-900 truncate">{currentChapter.title}</span>
+              </div>
+              <button onClick={() => { setQuizOpen(false); setQuizFeedback(null); }} className="p-1 rounded-lg hover:bg-gray-100 shrink-0"><X className="w-4 h-4 text-gray-400" /></button>
+            </div>
+
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              {quizFeedback === null ? (
+                <>
+                  <p className="text-sm font-medium text-gray-900 leading-relaxed">{currentQuiz.question}</p>
+
+                  {currentQuiz.type === "객관식" && (
+                    <div className="flex flex-col gap-2">
+                      {currentQuiz.options?.map((opt, i) => (
+                        <button key={i} onClick={() => setQSelected(i)}
+                          className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border text-left text-sm transition-colors ${qSelected === i ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-gray-200 hover:bg-gray-50 text-gray-700"}`}>
+                          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${qSelected === i ? "border-indigo-500" : "border-gray-300"}`}>
+                            {qSelected === i && <span className="w-2 h-2 rounded-full bg-indigo-500" />}
+                          </span>
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {currentQuiz.type === "서술형" && (
+                    <textarea value={qText} onChange={e => setQText(e.target.value)} rows={5}
+                      placeholder="답변을 작성하세요..." className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200" />
+                  )}
+
+                  {currentQuiz.type === "코딩" && (
+                    <textarea value={qCode} onChange={e => setQCode(e.target.value)} rows={8} spellCheck={false}
+                      className="w-full px-3 py-3 rounded-xl bg-gray-900 text-gray-100 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-400" style={{ fontFamily: "monospace" }} />
+                  )}
+
+                  <button onClick={submitQuiz} disabled={!quizAnswerable}
+                    className="w-full py-2.5 rounded-xl text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
+                    style={{ backgroundColor: course.color }}>제출</button>
+                </>
+              ) : (
+                <div className="text-center py-2">
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 ${quizFeedback ? "bg-green-100" : "bg-red-100"}`}>
+                    {quizFeedback ? <CheckCircle2 className="w-7 h-7 text-green-600" /> : <X className="w-7 h-7 text-red-500" />}
+                  </div>
+                  <h3 className="font-bold text-gray-900 mb-1">{quizFeedback ? "정답입니다! 🎉" : "오답입니다"}</h3>
+                  <p className="text-sm text-gray-500 mb-1">{quizFeedback ? "잘 이해하고 계세요. 다음 단계로 넘어갑니다." : "괜찮아요! 학습을 이어가고 정확도에 반영됩니다."}</p>
+                  {currentQuiz.type === "객관식" && currentQuiz.options && typeof currentQuiz.answerIndex === "number" && (
+                    <p className="text-xs text-gray-400 mb-4">정답: {currentQuiz.options[currentQuiz.answerIndex]}</p>
+                  )}
+                  <button onClick={proceedAfterQuiz}
+                    className="w-full py-2.5 rounded-xl text-white text-sm font-semibold hover:opacity-90 transition-opacity mt-3"
+                    style={{ backgroundColor: course.color }}>
+                    {currentIdx === allChapters.length - 1 ? "학습 완료" : "다음 단계로"}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 전체 완료 화면 */}
+      {showComplete && (() => {
+        const answered = Object.values(quizResults);
+        const correct = answered.filter(r => r.correct).length;
+        const acc = answered.length ? Math.round(correct / answered.length * 100) : 0;
+        return (
+          <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center px-4">
+            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-gray-200 overflow-hidden text-center">
+              <div className="px-6 pt-8 pb-6">
+                <div className="text-5xl mb-3">🎉</div>
+                <h2 className="text-xl font-bold text-gray-900 mb-1">교육 과정을 완료했습니다!</h2>
+                <p className="text-sm text-gray-500 mb-6">{course.title}</p>
+
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 mb-6">
+                  <div className="text-xs text-gray-500 mb-1">테스트 퀴즈 정확도</div>
+                  <div className="text-4xl font-bold" style={{ color: course.color }}>{acc}%</div>
+                  <div className="text-xs text-gray-400 mt-1">정답 {correct}/{answered.length}</div>
+                </div>
+
+                <div className="flex gap-2 mb-3">
+                  <button onClick={() => navigate("/")} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">교육 종료</button>
+                  <button onClick={() => navigate("/education")} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors">추가 교육 선택</button>
+                </div>
+                <button onClick={() => navigate("/interview")}
+                  className="w-full py-3 rounded-xl text-white text-sm font-semibold hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                  style={{ backgroundColor: course.color }}>
+                  <Sparkles className="w-4 h-4" />모의 면접 시도하기
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
