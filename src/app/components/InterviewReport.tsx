@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
   RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer,
@@ -7,7 +7,7 @@ import {
 import {
   TrendingUp, ChevronDown, ChevronUp,
   RotateCcw, Download, CheckCircle2, AlertCircle, Lightbulb,
-  Mic, Eye, MessageSquare
+  Mic, Eye, MessageSquare, Star, X
 } from "lucide-react";
 import jsPDF from "jspdf";
 
@@ -166,6 +166,10 @@ function ScoreRow({ label, value, max, color }: { label: string; value: number; 
   );
 }
 
+// 실제 서비스에선 서버에 설문 저장. 프로토타입이라 localStorage 사용. SURVEY_EVERY로 주기 조정.
+const SURVEY_EVERY = 10;
+type SurveyResponse = { date: string; overall: number; quality: number; usability: number; recommend: number; comment: string };
+
 export function InterviewReport() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -175,6 +179,42 @@ export function InterviewReport() {
   const config: ReportConfig = state?.config ?? MOCK_CONFIG;
 
   const [openQA, setOpenQA] = useState<number | null>(null);
+
+  // ── 면접 만족도 설문 (10회마다) ──
+  const [interviewCount, setInterviewCount] = useState(0);
+  const [showSurveyPrompt, setShowSurveyPrompt] = useState(false);
+  const [showSurvey, setShowSurvey] = useState(false);
+  const [surveyDone, setSurveyDone] = useState(false);
+  const [survey, setSurvey] = useState({ overall: 0, quality: 0, usability: 0, recommend: 0, comment: "" });
+
+  useEffect(() => {
+    // 실제 면접 완료로 들어온 경우만(딥링크 재방문 중복 카운트 방지)
+    if (!state?.entries || state.entries.length === 0) return;
+    let count = 0;
+    try { count = parseInt(localStorage.getItem("devready_interview_count") ?? "0", 10) || 0; } catch { count = 0; }
+    count += 1;
+    try { localStorage.setItem("devready_interview_count", String(count)); } catch { /* ignore */ }
+    setInterviewCount(count);
+    if (count % SURVEY_EVERY === 0) setShowSurveyPrompt(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const submitSurvey = () => {
+    const resp: SurveyResponse = {
+      date: new Date().toISOString().slice(0, 10),
+      overall: survey.overall, quality: survey.quality, usability: survey.usability, recommend: survey.recommend, comment: survey.comment,
+    };
+    try {
+      const raw = localStorage.getItem("devready_surveys");
+      const arr: SurveyResponse[] = raw ? JSON.parse(raw) : [];
+      arr.push(resp);
+      localStorage.setItem("devready_surveys", JSON.stringify(arr));
+    } catch { /* ignore */ }
+    setShowSurvey(false);
+    setSurveyDone(true);
+    setTimeout(() => setSurveyDone(false), 3000);
+  };
+  const surveyReady = survey.overall > 0 && survey.quality > 0 && survey.usability > 0 && survey.recommend > 0;
 
   const avgScore = entries.length > 0
     ? Math.round(entries.reduce((s, e) => s + weightedScore(e.scores), 0) / entries.length)
@@ -282,6 +322,71 @@ export function InterviewReport() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-12">
+      {/* 설문 감사 토스트 */}
+      {surveyDone && (
+        <div className="fixed top-6 right-6 z-[100] bg-white border border-green-200 rounded-xl shadow-lg px-4 py-3 flex items-center gap-2 text-sm text-green-700">
+          <CheckCircle2 className="w-4 h-4" />설문에 참여해 주셔서 감사합니다.
+        </div>
+      )}
+
+      {/* 설문 참여 프롬프트 */}
+      {showSurveyPrompt && (
+        <div className="fixed inset-0 z-[80] bg-black/40 flex items-center justify-center px-4">
+          <div className="bg-card rounded-2xl w-full max-w-sm shadow-2xl border border-border p-6 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <MessageSquare className="w-6 h-6 text-primary" />
+            </div>
+            <h3 className="font-semibold text-foreground mb-2">면접을 {interviewCount}회 이용하셨어요!</h3>
+            <p className="text-sm text-muted-foreground mb-6">잠깐 설문에 참여해 주시겠어요? 더 나은 서비스를 만드는 데 큰 도움이 됩니다.</p>
+            <div className="flex gap-2">
+              <button onClick={() => setShowSurveyPrompt(false)} className="flex-1 py-2.5 rounded-xl border border-border text-sm text-foreground hover:bg-secondary transition-colors">아니오</button>
+              <button onClick={() => { setShowSurveyPrompt(false); setShowSurvey(true); }} className="flex-1 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-indigo-600 transition-colors">예, 참여할게요</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 설문 모달 */}
+      {showSurvey && (
+        <div className="fixed inset-0 z-[80] bg-black/40 flex items-center justify-center px-4">
+          <div className="bg-card rounded-2xl w-full max-w-md shadow-2xl border border-border overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <span className="font-semibold text-foreground">면접 만족도 설문</span>
+              <button onClick={() => setShowSurvey(false)} className="p-1 rounded-lg hover:bg-secondary"><X className="w-4 h-4 text-muted-foreground" /></button>
+            </div>
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              {([
+                ["overall", "전반 만족도"],
+                ["quality", "질문 품질"],
+                ["usability", "UI 편의성"],
+                ["recommend", "추천 의향"],
+              ] as const).map(([key, label]) => (
+                <div key={key} className="flex items-center justify-between">
+                  <span className="text-sm text-foreground">{label}</span>
+                  <div className="flex items-center gap-1">
+                    {[1,2,3,4,5].map(i => (
+                      <button key={i} onClick={() => setSurvey(s => ({ ...s, [key]: i }))} className="p-0.5" aria-label={`${label} ${i}점`}>
+                        <Star className={`w-6 h-6 transition-colors ${i <= (survey as any)[key] ? "text-yellow-400 fill-yellow-400" : "text-gray-200 fill-gray-200 hover:text-yellow-200"}`} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">자유 의견 (선택)</label>
+                <textarea value={survey.comment} onChange={e => setSurvey(s => ({ ...s, comment: e.target.value }))} rows={3}
+                  placeholder="개선했으면 하는 점이나 좋았던 점을 남겨주세요." className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => setShowSurvey(false)} className="flex-1 py-2.5 rounded-xl border border-border text-sm text-foreground hover:bg-secondary transition-colors">취소</button>
+                <button onClick={submitSurvey} disabled={!surveyReady}
+                  className="flex-1 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-indigo-600 transition-colors disabled:opacity-40">제출</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-10">
         <div>

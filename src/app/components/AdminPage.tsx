@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { NoticeRow, INIT_NOTICES } from "../data/notices";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, RadarChart, Radar, PolarGrid, PolarAngleAxis, Legend,
@@ -1424,14 +1425,7 @@ function ChatbotSection() {
 
 // ─── Notices / FAQ (A-007) ────────────────────────────────────────────────────
 
-type NoticeRow = { id: number; title: string; content: string; type: "공지"|"점검"|"이벤트"; date: string; published: boolean; };
 type FaqRow = { id: number; question: string; answer: string; category: string; };
-
-const INIT_NOTICES: NoticeRow[] = [
-  { id: 1, title: "2026년 6월 정기 점검 안내", content: "6월 15일 새벽 2시~4시 시스템 점검이 진행됩니다.", type: "점검", date: "2026-06-10", published: true },
-  { id: 2, title: "면접 이용권 여름 할인 이벤트", content: "7월 한 달간 프로 플랜 20% 할인 이벤트를 진행합니다.", type: "이벤트", date: "2026-06-08", published: true },
-  { id: 3, title: "서비스 이용약관 개정 안내", content: "2026년 7월 1일부터 개정된 이용약관이 적용됩니다.", type: "공지", date: "2026-06-05", published: false },
-];
 
 const INIT_FAQS: FaqRow[] = [
   { id: 1, question: "회원가입은 어떻게 하나요?", answer: "홈페이지 상단 '회원가입' 버튼을 클릭하여 이메일로 가입하세요.", category: "계정" },
@@ -1777,90 +1771,112 @@ function StarRating({ score }: { score: number }) {
   );
 }
 
+type SurveyResponse = { date: string; overall: number; quality: number; usability: number; recommend: number; comment: string };
+
 function SatisfactionSection() {
-  const [tab, setTab] = useState<"설문 결과"|"분석 리포트">("설문 결과");
+  const [responses, setResponses] = useState<SurveyResponse[]>([]);
+
+  // 실제 서비스에선 서버 조회. 프로토타입이라 localStorage(devready_surveys) + mock 합산.
+  useEffect(() => {
+    let local: SurveyResponse[] = [];
+    try {
+      const raw = localStorage.getItem("devready_surveys");
+      if (raw) local = JSON.parse(raw);
+    } catch { local = []; }
+    const mock: SurveyResponse[] = SURVEY_DATA.map(s => ({
+      date: s.date, overall: s.avg_score, quality: s.avg_score, usability: s.avg_score, recommend: s.avg_score, comment: s.comment,
+    }));
+    setResponses([...local].reverse().concat(mock)); // 새 응답(localStorage)이 위로
+  }, []);
+
+  const count = responses.length;
+  const mean = (sel: (r: SurveyResponse) => number) => count ? +(responses.reduce((s, r) => s + sel(r), 0) / count).toFixed(1) : 0;
+  const avgOverall = mean(r => r.overall);
+  const avgRecommend = mean(r => r.recommend);
+  const radarData = [
+    { subject: "전반", score: mean(r => r.overall) },
+    { subject: "질문품질", score: mean(r => r.quality) },
+    { subject: "UI편의성", score: mean(r => r.usability) },
+    { subject: "추천", score: mean(r => r.recommend) },
+  ];
 
   return (
     <div>
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-foreground mb-2">만족도 관리</h1>
-        <p className="text-sm text-muted-foreground">기업 회원 서비스 만족도 설문 결과 및 분석</p>
+        <p className="text-sm text-muted-foreground">면접 이용자 만족도 설문 결과 및 분석</p>
       </div>
 
-      <div className="flex gap-1 mb-6">
-        {(["설문 결과","분석 리포트"] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t ? "bg-primary text-white" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
-            {t}
-          </button>
+      {/* KPI 카드 */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        {[
+          { label: "총 응답 수", value: `${count}건`, color: "#6C63FF" },
+          { label: "평균 전반 만족도", value: `${avgOverall} / 5`, color: "#10B981" },
+          { label: "평균 추천 의향", value: `${avgRecommend} / 5`, color: "#F59E0B" },
+        ].map(k => (
+          <div key={k.label} className="rounded-2xl border border-border bg-card p-5">
+            <div className="text-sm text-muted-foreground mb-1">{k.label}</div>
+            <div className="text-2xl font-bold" style={{ color: k.color }}>{k.value}</div>
+          </div>
         ))}
       </div>
 
-      {tab === "설문 결과" && (
-        <div className="rounded-2xl border border-border bg-card overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-secondary">
-              <tr>
-                <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">기업</th>
-                <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">날짜</th>
-                <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">평균 점수</th>
-                <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">의견</th>
+      {/* 차트 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <h3 className="font-semibold text-foreground mb-5">항목별 평균 (레이더 차트)</h3>
+          <ResponsiveContainer width="100%" height={260}>
+            <RadarChart data={radarData}>
+              <PolarGrid />
+              <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fill: "#64748B" }} />
+              <Radar dataKey="score" stroke="#6C63FF" fill="#6C63FF" fillOpacity={0.3} />
+              <Tooltip contentStyle={{ background: "#FFF", border: "1px solid #E2E8F0", borderRadius: 8 }} />
+            </RadarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <h3 className="font-semibold text-foreground mb-5">월별 평균 만족도 추이</h3>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={SAT_TREND}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
+              <XAxis dataKey="month" tick={{ fill: "#64748B", fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis domain={[3, 5]} tick={{ fill: "#64748B", fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ background: "#FFF", border: "1px solid #E2E8F0", borderRadius: 8 }} />
+              <Bar dataKey="avg" fill="#F59E0B" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* 개별 응답 테이블 */}
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="px-5 py-3 border-b border-border bg-secondary">
+          <span className="text-sm font-semibold text-foreground">개별 응답</span>
+        </div>
+        <table className="w-full">
+          <thead className="bg-secondary">
+            <tr>
+              <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">날짜</th>
+              <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">전반 만족도</th>
+              <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">추천 의향</th>
+              <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">의견</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {responses.map((r, i) => (
+              <tr key={i} className="hover:bg-secondary/50 transition-colors">
+                <td className="px-5 py-4 text-sm text-muted-foreground">{r.date}</td>
+                <td className="px-5 py-4"><StarRating score={r.overall} /></td>
+                <td className="px-5 py-4 text-sm text-foreground">{r.recommend} / 5</td>
+                <td className="px-5 py-4 text-sm text-muted-foreground">{r.comment || "-"}</td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {SURVEY_DATA.map((s, i) => (
-                <tr key={i} className="hover:bg-secondary/50 transition-colors">
-                  <td className="px-5 py-4 text-sm font-medium text-foreground">{s.company}</td>
-                  <td className="px-5 py-4 text-sm text-muted-foreground">{s.date}</td>
-                  <td className="px-5 py-4"><StarRating score={s.avg_score} /></td>
-                  <td className="px-5 py-4 text-sm text-muted-foreground">{s.comment}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {tab === "분석 리포트" && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="rounded-2xl border border-border bg-card p-6">
-              <h3 className="font-semibold text-foreground mb-5">항목별 만족도 (레이더 차트)</h3>
-              <ResponsiveContainer width="100%" height={260}>
-                <RadarChart data={RADAR_DATA}>
-                  <PolarGrid />
-                  <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fill: "#64748B" }} />
-                  <Radar dataKey="score" stroke="#6C63FF" fill="#6C63FF" fillOpacity={0.3} />
-                  <Tooltip contentStyle={{ background: "#FFF", border: "1px solid #E2E8F0", borderRadius: 8 }} />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card p-6">
-              <h3 className="font-semibold text-foreground mb-5">월별 평균 만족도 추이</h3>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={SAT_TREND}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
-                  <XAxis dataKey="month" tick={{ fill: "#64748B", fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis domain={[3, 5]} tick={{ fill: "#64748B", fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ background: "#FFF", border: "1px solid #E2E8F0", borderRadius: 8 }} />
-                  <Bar dataKey="avg" fill="#F59E0B" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-border bg-card p-6">
-            <h3 className="font-semibold text-foreground mb-3">주요 인사이트</h3>
-            <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
-              <li>AI 면접 활용도가 4.5점으로 가장 높으며, 기업 회원 만족도의 핵심 강점으로 나타남</li>
-              <li>이력서 열람 기능(3.8점)이 상대적으로 낮아 UI/UX 개선이 필요함</li>
-              <li>공고 등록 편의성(4.2점)과 전반적 만족도(4.1점)는 양호한 수준 유지</li>
-              <li>6월 평균 4.3점으로 지속적 상승 추세를 보이고 있음</li>
-            </ul>
-          </div>
-        </div>
-      )}
+            ))}
+            {responses.length === 0 && (
+              <tr><td colSpan={4} className="px-5 py-8 text-center text-sm text-muted-foreground">아직 설문 응답이 없습니다.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

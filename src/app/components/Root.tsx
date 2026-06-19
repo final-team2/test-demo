@@ -1,5 +1,5 @@
 import { Outlet, Link, useNavigate, useLocation } from "react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   BrainCircuit, LayoutDashboard, BookOpen, Briefcase,
   Calendar, FileText, Users, Menu, X, ChevronDown,
@@ -9,6 +9,7 @@ import {
 import { AnnouncementBanner } from "./AnnouncementBanner";
 import { ChatbotWidget } from "./ChatbotWidget";
 import { isAuthed, setAuthed } from "../auth";
+import { publishedNotices, NoticeRow, NOTICE_TYPE_CLS } from "../data/notices";
 
 const NAV_MAIN = [
   {
@@ -70,13 +71,6 @@ const NAV_MAIN = [
   },
 ];
 
-const NOTIFICATIONS = [
-  { id: 1, text: "카카오 공고 마감 D-3", time: "방금", unread: true },
-  { id: 2, text: "기술면접 결과 리포트가 생성됐습니다", time: "1시간 전", unread: true },
-  { id: 3, text: "스터디 모집 게시글에 댓글이 달렸습니다", time: "3시간 전", unread: false },
-  { id: 4, text: "찜한 네이버 공고가 오픈됐습니다", time: "어제", unread: false },
-];
-
 export function Root() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -84,6 +78,9 @@ export function Root() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [noticeDetail, setNoticeDetail] = useState<NoticeRow | null>(null);
+  const [noticeListOpen, setNoticeListOpen] = useState(false);
+  const [noticePopup, setNoticePopup] = useState<NoticeRow | null>(null);
 
   const isInterview = location.pathname.startsWith("/interview/session");
   const isLanding = location.pathname === "/";
@@ -95,7 +92,25 @@ export function Root() {
   // Simulate admin role - in production, this would come from auth context
   const isAdmin = true; // Set to true to show admin features
 
-  const unreadCount = NOTIFICATIONS.filter(n => n.unread).length;
+  const notices = publishedNotices();
+  const unreadCount = notices.length;
+
+  // 랜딩 첫 진입 시 최신 공지 팝업 (오늘 하루 보지 않기 적용)
+  useEffect(() => {
+    if (location.pathname !== "/") return;
+    const latest = publishedNotices()[0];
+    if (!latest) return;
+    let hiddenUntil = "";
+    try { hiddenUntil = localStorage.getItem("devready_notice_hidden_until") ?? ""; } catch { /* ignore */ }
+    const today = new Date().toISOString().slice(0, 10);
+    if (hiddenUntil === today) return;
+    setNoticePopup(latest);
+  }, [location.pathname]);
+
+  const hideNoticeToday = () => {
+    try { localStorage.setItem("devready_notice_hidden_until", new Date().toISOString().slice(0, 10)); } catch { /* ignore */ }
+    setNoticePopup(null);
+  };
 
   if (isInterview || isAdminPage) return (<><Outlet /><ChatbotWidget /></>);
 
@@ -216,18 +231,27 @@ export function Root() {
                   {notifOpen && (
                     <div className="absolute right-0 top-12 w-80 rounded-2xl border border-border bg-card shadow-xl overflow-hidden z-50">
                       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-                        <span className="font-semibold text-sm text-foreground">알림</span>
-                        <button className="text-xs text-primary hover:text-accent" onClick={() => setNotifOpen(false)}>모두 읽음</button>
+                        <span className="font-semibold text-sm text-foreground">공지사항</span>
+                        <span className="text-xs text-muted-foreground">{notices.length}건</span>
                       </div>
-                      {NOTIFICATIONS.map(n => (
-                        <div key={n.id} className={`flex items-start gap-3 px-4 py-3 hover:bg-secondary cursor-pointer transition-colors ${n.unread ? "bg-primary/3" : ""}`}>
-                          <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.unread ? "bg-primary" : "bg-transparent"}`} />
+                      {notices.length === 0 && (
+                        <div className="px-4 py-6 text-center text-sm text-muted-foreground">등록된 공지가 없습니다.</div>
+                      )}
+                      {notices.map(n => (
+                        <button key={n.id}
+                          onClick={() => { setNoticeDetail(n); setNotifOpen(false); }}
+                          className="w-full flex items-start gap-3 px-4 py-3 hover:bg-secondary cursor-pointer transition-colors text-left">
+                          <span className={`shrink-0 mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium ${NOTICE_TYPE_CLS[n.type]}`}>{n.type}</span>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm text-foreground">{n.text}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{n.time}</p>
+                            <p className="text-sm text-foreground truncate">{n.title}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{n.date}</p>
                           </div>
-                        </div>
+                        </button>
                       ))}
+                      <button onClick={() => { setNoticeListOpen(true); setNotifOpen(false); }}
+                        className="w-full px-4 py-3 border-t border-border text-sm text-primary hover:bg-secondary transition-colors flex items-center justify-center gap-1">
+                        전체 보기 <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   )}
                 </div>
@@ -365,6 +389,65 @@ export function Root() {
       <main className="flex-1">
         <Outlet />
       </main>
+
+      {/* 공지 상세 모달 */}
+      {noticeDetail && (
+        <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center px-4" onClick={() => setNoticeDetail(null)}>
+          <div className="bg-card rounded-2xl w-full max-w-md shadow-2xl border border-border overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${NOTICE_TYPE_CLS[noticeDetail.type]}`}>{noticeDetail.type}</span>
+              <button onClick={() => setNoticeDetail(null)} className="p-1 rounded-lg hover:bg-secondary"><X className="w-4 h-4 text-muted-foreground" /></button>
+            </div>
+            <div className="px-6 py-5">
+              <h3 className="font-semibold text-foreground mb-1">{noticeDetail.title}</h3>
+              <p className="text-xs text-muted-foreground mb-4">{noticeDetail.date}</p>
+              <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">{noticeDetail.content}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 공지 전체 목록 모달 */}
+      {noticeListOpen && (
+        <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center px-4" onClick={() => setNoticeListOpen(false)}>
+          <div className="bg-card rounded-2xl w-full max-w-md shadow-2xl border border-border overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <span className="font-semibold text-foreground">공지사항 전체</span>
+              <button onClick={() => setNoticeListOpen(false)} className="p-1 rounded-lg hover:bg-secondary"><X className="w-4 h-4 text-muted-foreground" /></button>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto divide-y divide-border">
+              {notices.map(n => (
+                <button key={n.id} onClick={() => { setNoticeDetail(n); setNoticeListOpen(false); }}
+                  className="w-full flex items-start gap-3 px-6 py-3.5 hover:bg-secondary text-left transition-colors">
+                  <span className={`shrink-0 mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium ${NOTICE_TYPE_CLS[n.type]}`}>{n.type}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-foreground">{n.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{n.date}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 랜딩 공지 팝업 */}
+      {isLanding && noticePopup && (
+        <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center px-4">
+          <div className="bg-card rounded-2xl w-full max-w-sm shadow-2xl border border-border overflow-hidden">
+            <div className="px-6 pt-6 pb-5">
+              <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium mb-3 ${NOTICE_TYPE_CLS[noticePopup.type]}`}>{noticePopup.type}</span>
+              <h3 className="font-semibold text-foreground mb-1">{noticePopup.title}</h3>
+              <p className="text-xs text-muted-foreground mb-3">{noticePopup.date}</p>
+              <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">{noticePopup.content}</p>
+            </div>
+            <div className="flex border-t border-border">
+              <button onClick={hideNoticeToday} className="flex-1 py-3 text-sm text-muted-foreground hover:bg-secondary transition-colors">오늘 하루 보지 않기</button>
+              <button onClick={() => setNoticePopup(null)} className="flex-1 py-3 text-sm font-medium text-primary border-l border-border hover:bg-secondary transition-colors">닫기</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ChatbotWidget />
     </div>
