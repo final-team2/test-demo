@@ -775,7 +775,7 @@ export function InterviewSession() {
             <div className="flex gap-3">
               <button onClick={() => setShowExit(false)} className="flex-1 py-2.5 rounded-lg border border-border text-sm hover:bg-secondary transition-colors">계속하기</button>
               <button
-                onClick={() => { streamRef.current?.getTracks().forEach(t => t.stop()); navigate("/dashboard"); }}
+                onClick={() => { streamRef.current?.getTracks().forEach(t => t.stop()); navigate("/"); }}
                 className="flex-1 py-2.5 rounded-lg bg-red-500 text-white text-sm hover:bg-red-600">종료</button>
             </div>
           </div>

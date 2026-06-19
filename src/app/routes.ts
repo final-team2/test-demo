@@ -14,7 +14,6 @@ import { InterviewSetup } from "./components/InterviewSetup";
 import { InterviewSession } from "./components/InterviewSession";
 import { InterviewReport } from "./components/InterviewReport";
 import { CommunityPage } from "./components/CommunityPage";
-import { DashboardPage } from "./components/DashboardPage";
 import { HistoryPage } from "./components/HistoryPage";
 import { SessionDetail } from "./components/SessionDetail";
 import { MyPage } from "./components/MyPage";
@@ -43,7 +42,6 @@ export const router = createBrowserRouter([
       { path: "interview/session", Component: InterviewSession },
       { path: "interview/report/:id", Component: InterviewReport },
       { path: "community", Component: CommunityPage },
-      { path: "dashboard", Component: DashboardPage },
       { path: "history", Component: HistoryPage },
       { path: "history/:id", Component: SessionDetail },
       { path: "mypage", Component: MyPage },

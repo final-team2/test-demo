@@ -639,10 +639,10 @@ export function InterviewReport() {
           다시 도전하기
         </button>
         <button
-          onClick={() => navigate("/dashboard")}
+          onClick={() => navigate("/history")}
           className="flex items-center gap-2 px-8 py-3 rounded-xl border border-border hover:bg-secondary text-foreground transition-colors"
         >
-          대시보드 보기
+          면접 기록 보기
         </button>
       </div>
     </div>

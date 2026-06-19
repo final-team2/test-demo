@@ -100,7 +100,7 @@ const FALLBACK_RESPONSES: Record<string, { text: string; actions?: { label: stri
     actions: [{ label: "교육 센터에서 학습", href: "/education" }, { label: "면접 연습", href: "/interview/setup" }],
   },
   "점수 올리는 방법": {
-    text: "📈 점수를 빠르게 올리려면\n\n• 약점 카테고리 집중 연습 (대시보드에서 확인)\n• 같은 질문을 3번 이상 반복 → 다른 구조로 답변\n• 음성 분석 결과로 필러워드(어, 그니까) 줄이기\n• 꼬리질문까지 완전히 답변하는 습관\n• STAR 기법으로 경험 기반 답변 구조화",
+    text: "📈 점수를 빠르게 올리려면\n\n• 약점 카테고리 집중 연습 (마이페이지에서 확인)\n• 같은 질문을 3번 이상 반복 → 다른 구조로 답변\n• 음성 분석 결과로 필러워드(어, 그니까) 줄이기\n• 꼬리질문까지 완전히 답변하는 습관\n• STAR 기법으로 경험 기반 답변 구조화",
     actions: [{ label: "내 약점 확인", href: "/mypage?tab=interview" }],
   },
   "이력서 AI 자동완성": {

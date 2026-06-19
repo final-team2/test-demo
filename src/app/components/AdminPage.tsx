@@ -7,10 +7,9 @@ import {
 import {
   Users, Shield, Briefcase, AlertTriangle, Bell, BookOpen, Star, Bot,
   Plus, Trash2, Edit2, Search, Send, ArrowLeft, Save, ToggleLeft, ToggleRight,
-  CheckCircle2, XCircle, LayoutDashboard, Eye, UserX, Download, FileText
+  CheckCircle2, XCircle, LayoutDashboard, Eye, UserX, Download
 } from "lucide-react";
 import { useNavigate } from "react-router";
-import { ResumeReview } from "./ResumeReview";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -19,8 +18,7 @@ const MENU_ITEMS = [
   { id: "domain-header", label: "DOMAIN", isHeader: true },
   { id: "users", label: "회원 관리", icon: Users },
   { id: "jobs", label: "공고 관리", icon: Briefcase },
-  { id: "resumes", label: "이력서 관리", icon: FileText },
-  { id: "reports", label: "게시판 관리", icon: AlertTriangle },
+  { id: "reports", label: "자유게시판 관리", icon: AlertTriangle },
   { id: "content-header", label: "CONTENT", isHeader: true },
   { id: "algorithms", label: "알고리즘 관리", icon: BookOpen },
   { id: "chatbot", label: "챗봇 관리", icon: Bot },
@@ -1067,28 +1065,29 @@ const INIT_REPORTS: ReportRow[] = [
   { id: 5, type: "채팅", content: "개인정보 요청 메시지...", reporter: "최수연", reportedUser: "정도현", reason: "개인정보침해", status: "삭제처리" },
 ];
 
-const BOARD_POSTS = {
-  면접후기: [
-    { id: 1, author: "김철수", preview: "네이버 프론트엔드 면접 후기 공유합니다. 알고리즘 위주로...", date: "2026-06-08", reports: 0 },
-    { id: 2, author: "이영희", preview: "카카오 백엔드 2차 면접 경험담입니다. 시스템 설계 질문이...", date: "2026-06-07", reports: 1 },
-    { id: 3, author: "박민준", preview: "토스 풀스택 코딩테스트 후기, 난이도는 중상 정도...", date: "2026-06-06", reports: 0 },
-  ],
-  스터디: [
-    { id: 4, author: "최수연", preview: "알고리즘 스터디 모집합니다. 주 2회 온라인 진행...", date: "2026-06-09", reports: 0 },
-    { id: 5, author: "정도현", preview: "CS 기초 스터디 같이 하실 분 구합니다...", date: "2026-06-08", reports: 0 },
-  ],
-  자유게시판: [
-    { id: 6, author: "한지민", preview: "취준 생활 힘드네요 다들 화이팅입니다...", date: "2026-06-09", reports: 2 },
-    { id: 7, author: "김철수", preview: "DevReady 이용하고 나서 면접 합격했습니다!!", date: "2026-06-07", reports: 0 },
-    { id: 8, author: "이영희", preview: "면접 준비 팁 공유드립니다...", date: "2026-06-06", reports: 0 },
-  ],
+type BoardPost = { id: number; tag: "면접후기"|"질문"|"자유"; author: string; preview: string; date: string; reports: number };
+
+const BOARD_POSTS: BoardPost[] = [
+  { id: 1, tag: "면접후기", author: "김철수", preview: "네이버 프론트엔드 면접 후기 공유합니다. 알고리즘 위주로...", date: "2026-06-08", reports: 0 },
+  { id: 2, tag: "면접후기", author: "이영희", preview: "카카오 백엔드 2차 면접 경험담입니다. 시스템 설계 질문이...", date: "2026-06-07", reports: 1 },
+  { id: 3, tag: "면접후기", author: "박민준", preview: "토스 풀스택 코딩테스트 후기, 난이도는 중상 정도...", date: "2026-06-06", reports: 0 },
+  { id: 4, tag: "질문", author: "최수연", preview: "알고리즘 스터디 모집합니다. 주 2회 온라인 진행...", date: "2026-06-09", reports: 0 },
+  { id: 5, tag: "질문", author: "정도현", preview: "CS 기초 같이 공부하실 분 구합니다...", date: "2026-06-08", reports: 0 },
+  { id: 6, tag: "자유", author: "한지민", preview: "취준 생활 힘드네요 다들 화이팅입니다...", date: "2026-06-09", reports: 2 },
+  { id: 7, tag: "자유", author: "김철수", preview: "DevReady 이용하고 나서 면접 합격했습니다!!", date: "2026-06-07", reports: 0 },
+  { id: 8, tag: "자유", author: "이영희", preview: "면접 준비 팁 공유드립니다...", date: "2026-06-06", reports: 0 },
+];
+
+const BOARD_TAG_CLS: Record<BoardPost["tag"], string> = {
+  면접후기: "bg-blue-100 text-blue-700",
+  질문: "bg-amber-100 text-amber-700",
+  자유: "bg-gray-100 text-gray-600",
 };
 
 function ReportsSection() {
   const [mainTab, setMainTab] = useState<"신고 목록"|"게시글 전체">("신고 목록");
   const [reports, setReports] = useState<ReportRow[]>(INIT_REPORTS);
-  const [boardTab, setBoardTab] = useState<"면접후기"|"스터디"|"자유게시판">("면접후기");
-  const [boardPosts, setBoardPosts] = useState(BOARD_POSTS);
+  const [boardPosts, setBoardPosts] = useState<BoardPost[]>(BOARD_POSTS);
   const [toast, setToast] = useState("");
   const showMsg = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
 
@@ -1096,8 +1095,8 @@ function ReportsSection() {
     <div>
       <Toast msg={toast} />
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-foreground mb-2">게시판 관리</h1>
-        <p className="text-sm text-muted-foreground">신고 처리 및 게시글 전체 관리</p>
+        <h1 className="text-3xl font-bold text-foreground mb-2">자유게시판 관리</h1>
+        <p className="text-sm text-muted-foreground">게시글 신고 처리 및 관리</p>
       </div>
 
       <div className="flex gap-1 mb-6">
@@ -1154,50 +1153,44 @@ function ReportsSection() {
       )}
 
       {mainTab === "게시글 전체" && (
-        <div>
-          <div className="flex gap-1 mb-4">
-            {(["면접후기","스터디","자유게시판"] as const).map(t => (
-              <button key={t} onClick={() => setBoardTab(t)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${boardTab === t ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
-                {t}
-              </button>
-            ))}
-          </div>
-          <div className="rounded-2xl border border-border bg-card overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-secondary">
-                <tr>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">작성자</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">내용 미리보기</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">날짜</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">신고수</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">작업</th>
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-secondary">
+              <tr>
+                <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">머릿말</th>
+                <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">작성자</th>
+                <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">내용 미리보기</th>
+                <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">날짜</th>
+                <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">신고수</th>
+                <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">작업</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {boardPosts.map(p => (
+                <tr key={p.id} className="hover:bg-secondary/50 transition-colors">
+                  <td className="px-5 py-4">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${BOARD_TAG_CLS[p.tag]}`}>[{p.tag}]</span>
+                  </td>
+                  <td className="px-5 py-4 text-sm font-medium text-foreground">{p.author}</td>
+                  <td className="px-5 py-4 text-sm text-muted-foreground max-w-sm truncate">{p.preview}</td>
+                  <td className="px-5 py-4 text-sm text-muted-foreground">{p.date}</td>
+                  <td className="px-5 py-4 text-sm">
+                    <span className={p.reports > 0 ? "text-red-600 font-semibold" : "text-muted-foreground"}>{p.reports}</span>
+                  </td>
+                  <td className="px-5 py-4">
+                    <button onClick={() => {
+                      if (confirm("이 게시글을 삭제하시겠습니까?")) {
+                        setBoardPosts(prev => prev.filter(x => x.id !== p.id));
+                        showMsg("게시글이 삭제되었습니다.");
+                      }
+                    }} className="p-1.5 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500 transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {boardPosts[boardTab].map(p => (
-                  <tr key={p.id} className="hover:bg-secondary/50 transition-colors">
-                    <td className="px-5 py-4 text-sm font-medium text-foreground">{p.author}</td>
-                    <td className="px-5 py-4 text-sm text-muted-foreground max-w-sm truncate">{p.preview}</td>
-                    <td className="px-5 py-4 text-sm text-muted-foreground">{p.date}</td>
-                    <td className="px-5 py-4 text-sm">
-                      <span className={p.reports > 0 ? "text-red-600 font-semibold" : "text-muted-foreground"}>{p.reports}</span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <button onClick={() => {
-                        if (confirm("이 게시글을 삭제하시겠습니까?")) {
-                          setBoardPosts(prev => ({ ...prev, [boardTab]: prev[boardTab].filter(x => x.id !== p.id) }));
-                          showMsg("게시글이 삭제되었습니다.");
-                        }
-                      }} className="p-1.5 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500 transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
@@ -1892,7 +1885,7 @@ export function AdminPage() {
               <p className="text-xs text-white/60">DevReady</p>
             </div>
           </button>
-          <button onClick={() => navigate("/dashboard")}
+          <button onClick={() => navigate("/")}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors w-full">
             <ArrowLeft className="w-4 h-4" />홈으로 돌아가기
           </button>
@@ -1927,7 +1920,6 @@ export function AdminPage() {
           {activeMenu === "dashboard" && <DashboardSection />}
           {activeMenu === "users" && <UsersSection />}
           {activeMenu === "jobs" && <JobsSection />}
-          {activeMenu === "resumes" && <ResumeReview embedded />}
           {activeMenu === "reports" && <ReportsSection />}
           {activeMenu === "algorithms" && <AlgorithmsSection />}
           {activeMenu === "chatbot" && <ChatbotSection />}

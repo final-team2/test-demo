@@ -16,7 +16,7 @@ const BANNERS = [
     label: "새 기능",
     text: "음성 분석 v2 출시 — 한국어 필러워드 감지 정확도 92%",
     cta: "자세히 보기",
-    href: "/dashboard",
+    href: "/interview",
     color: "from-violet-500 to-pink-500",
   },
 ];
