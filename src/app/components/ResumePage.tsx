@@ -208,8 +208,30 @@ function AiSuggestionPanel({
   const [loading, setLoading] = useState(false);
   const [suggestion, setSuggestion] = useState<Partial<ResumeData> | null>(null);
   const [applied, setApplied] = useState(false);
+  const [coverDraft, setCoverDraft] = useState(current.coverText);
 
   const sectionKey = section === "cover" ? "coverText" : section === "career" ? "careers" : section === "skills" ? "skills" : "basic";
+
+  // 자소서 가이드: 카테고리별 예시 단락(보유 스킬·경력 일부 반영) → 클릭 시 본문에 추가
+  const skillsText = current.skills.slice(0, 3).join(", ") || "주요 기술";
+  const COVER_BLOCKS: { title: string; desc: string; body: string }[] = [
+    { title: "성장 과정", desc: "가치관·성격이 형성된 배경", body: "어려서부터 새로운 것을 직접 만들어보며 문제를 끝까지 파고드는 성향을 길러왔습니다. 이러한 경험은 개발자로서 꾸준히 학습하고 성장하는 원동력이 되었습니다." },
+    { title: "지원 동기", desc: "회사·직무에 지원한 이유", body: "사용자에게 실질적인 가치를 주는 서비스를 만드는 귀사의 방향에 깊이 공감하여 지원하게 되었습니다. 제가 쌓아온 역량으로 팀에 기여하며 함께 성장하고 싶습니다." },
+    { title: "직무 역량·강점", desc: "기여할 수 있는 점", body: `${skillsText} 등을 활용해 요구사항을 빠르게 구현하고, 성능과 사용자 경험을 함께 고려하는 것이 강점입니다. 문서화와 코드 리뷰로 협업 효율을 높여왔습니다.` },
+    { title: "협업·문제해결 경험", desc: "STAR 형식 사례", body: "프로젝트에서 일정 지연 문제가 발생했을 때(상황), 병목 작업을 분리해 우선순위를 재정의하고(과제·행동) 핵심 기능을 먼저 배포해 일정을 회복한 경험이 있습니다(결과)." },
+    { title: "입사 후 포부", desc: "성장 목표와 기여 계획", body: "입사 후 빠르게 도메인을 익혀 맡은 영역에서 안정적으로 기여하고, 장기적으로는 서비스 품질과 팀의 개발 문화를 함께 끌어올리는 개발자가 되겠습니다." },
+  ];
+  const appendBlock = (b: { title: string; body: string }) => {
+    const block = `[${b.title}]\n${b.body}`;
+    const next = coverDraft.trim() ? coverDraft.trimEnd() + "\n\n" + block : block;
+    setCoverDraft(next);
+    onApply({ coverText: next });
+  };
+  const writeAllCover = () => {
+    const all = COVER_BLOCKS.map(b => `[${b.title}]\n${b.body}`).join("\n\n");
+    setCoverDraft(all);
+    onApply({ coverText: all });
+  };
 
   const generate = () => {
     setLoading(true);
@@ -237,19 +259,21 @@ function AiSuggestionPanel({
             <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary"><X className="w-4 h-4 text-muted-foreground" /></button>
           </div>
           <div className="p-5 space-y-4">
-            <p className="text-sm text-muted-foreground">자기소개서는 자유 서술입니다. 아래 기본 카테고리를 참고해 작성해보세요.</p>
+            <p className="text-sm text-muted-foreground">카테고리를 누르면 해당 단락이 자기소개서에 자동으로 작성됩니다. 작성 후 자유롭게 수정하세요.</p>
+            <button onClick={writeAllCover}
+              className="w-full py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-indigo-600 transition-colors flex items-center justify-center gap-1.5">
+              <Sparkles className="w-4 h-4" />전체 자동 작성
+            </button>
             <div className="flex flex-col gap-2">
-              {[
-                ["성장 과정", "가치관·성격이 형성된 배경을 간단히"],
-                ["지원 동기", "회사·직무에 지원한 이유와 관심"],
-                ["직무 역량·강점", "보유 기술·경험으로 기여할 수 있는 점"],
-                ["협업·문제해결 경험", "팀에서 갈등·문제를 해결한 사례(STAR)"],
-                ["입사 후 포부", "입사 후 성장 목표와 기여 계획"],
-              ].map(([t, d]) => (
-                <div key={t} className="rounded-xl border border-border bg-secondary p-3">
-                  <div className="text-sm font-medium text-foreground">{t}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">{d}</div>
-                </div>
+              {COVER_BLOCKS.map(b => (
+                <button key={b.title} onClick={() => appendBlock(b)}
+                  className="rounded-xl border border-border bg-secondary p-3 text-left hover:border-primary/40 hover:bg-primary/5 transition-colors group">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium text-foreground">{b.title}</div>
+                    <span className="text-xs text-primary opacity-0 group-hover:opacity-100 flex items-center gap-0.5"><Plus className="w-3 h-3" />추가</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">{b.desc}</div>
+                </button>
               ))}
             </div>
             <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-foreground leading-relaxed">

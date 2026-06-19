@@ -9,9 +9,9 @@ import { setAuthed } from "../auth";
 type Mode = "login" | "findId" | "resetPw" | "face";
 
 // 아이디 찾기 단계
-type FindIdStep = "input" | "verify" | "result";
+type FindIdStep = "verify" | "result";
 // 비밀번호 재설정 단계
-type ResetPwStep = "input" | "verify" | "newpw" | "done";
+type ResetPwStep = "input" | "sns" | "method" | "newpw" | "done";
 
 const SNS_BUTTONS = [
   { id: "naver", label: "네이버로 시작하기", bg: "#03C75A", text: "#ffffff",
@@ -19,6 +19,33 @@ const SNS_BUTTONS = [
   { id: "kakao", label: "카카오로 시작하기", bg: "#FEE500", text: "#191919",
     logo: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 1.5C4.858 1.5 1.5 4.134 1.5 7.35c0 2.034 1.356 3.822 3.402 4.854l-.87 3.234a.225.225 0 0 0 .342.243L8.1 13.374a8.4 8.4 0 0 0 .9.048c4.142 0 7.5-2.634 7.5-5.85C16.5 4.134 13.142 1.5 9 1.5Z" fill="#191919"/></svg> },
 ];
+
+// ── Mock 계정 데이터 + 본인확인 헬퍼 ──
+type Provider = "email" | "naver" | "kakao";
+type Account = { name: string; birth: string; carrier: string; phone: string; email: string; provider: Provider; joinedAt: string };
+const MOCK_ACCOUNTS: Account[] = [
+  { name: "김지수", birth: "000315", carrier: "SKT", phone: "01012345678", email: "jisu@example.com", provider: "email", joinedAt: "2026.03.15" },
+  { name: "이영희", birth: "990820", carrier: "KT",  phone: "01088887777", email: "younghee@naver.com", provider: "naver", joinedAt: "2026.02.10" },
+];
+const onlyDigits = (s: string) => s.replace(/\D/g, "");
+const providerLabel = (p: Provider) => p === "naver" ? "네이버" : p === "kakao" ? "카카오" : "이메일";
+function maskEmail(email: string) {
+  const [id, domain] = email.split("@"); if (!domain) return email;
+  const mid = id.length <= 2 ? id[0] + "*" : id.slice(0, 2) + "*".repeat(Math.max(1, id.length - 2));
+  const [host, ...rest] = domain.split(".");
+  const mhost = host.length <= 1 ? host : host[0] + "*".repeat(Math.max(1, host.length - 1));
+  return `${mid}@${mhost}.${rest.join(".")}`;
+}
+// 본인확인(이름+휴대폰) 조회. 데모 편의상 매칭 없으면 첫 계정 반환.
+function findAccountByIdentity(name: string, phone: string): Account {
+  return MOCK_ACCOUNTS.find(a => a.name === name.trim() && a.phone === onlyDigits(phone)) ?? MOCK_ACCOUNTS[0];
+}
+// 이메일로 가입경로 확인. 없으면 email 가입으로 간주(재설정 진행).
+function findAccountByEmail(email: string): Account {
+  const e = email.trim().toLowerCase();
+  return MOCK_ACCOUNTS.find(a => a.email === e) ?? { ...MOCK_ACCOUNTS[0], email: email.trim(), provider: "email" };
+}
+// TODO(실연동): 실제 PASS는 본인확인기관(NICE/KCB) 연동 필요. 프로토타입은 위 mock으로 화면만.
 
 function FaceIDPanel({ onSuccess }: { onSuccess: () => void }) {
   const [phase, setPhase] = useState<"idle" | "scanning" | "done">("idle");
@@ -77,6 +104,44 @@ function useCodeVerify(email: string) {
   return { codeSent, code, codeInput, setCodeInput, verifyError, cooldown, verified, sendCode, verify };
 }
 
+// PASS mock 본인인증 (이름·생년월일·통신사·휴대폰 → 인증번호). useCodeVerify 재사용.
+function PassVerifyPanel({ inputCls, onSuccess, onBack }: { inputCls: string; onSuccess: (acct: Account) => void; onBack: () => void }) {
+  const [name, setName] = useState("");
+  const [birth, setBirth] = useState("");
+  const [carrier, setCarrier] = useState("SKT");
+  const [phone, setPhone] = useState("");
+  const sms = useCodeVerify(phone);
+  const canReq = name.trim() && birth.length >= 6 && phone.length >= 10;
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="rounded-xl bg-indigo-50 border border-indigo-100 p-3 flex items-center gap-2 text-sm" style={{ color: "#6C63FF" }}>
+        <ShieldCheck className="w-4 h-4" /> 통신사 PASS 본인확인
+      </div>
+      <input placeholder="이름" value={name} onChange={e => setName(e.target.value)} className={inputCls} />
+      <input placeholder="생년월일 6자리 (YYMMDD)" maxLength={6} value={birth} onChange={e => setBirth(onlyDigits(e.target.value))} className={inputCls} />
+      <select value={carrier} onChange={e => setCarrier(e.target.value)} className={inputCls}>
+        {["SKT", "KT", "LG U+", "알뜰폰"].map(c => <option key={c}>{c}</option>)}
+      </select>
+      <div className="flex gap-2">
+        <input placeholder="휴대폰 번호" value={phone} onChange={e => setPhone(onlyDigits(e.target.value))} className={inputCls + " flex-1"} />
+        <button disabled={!canReq || sms.cooldown > 0} onClick={() => sms.sendCode()}
+          className="shrink-0 px-3 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-40" style={{ backgroundColor: "#6C63FF" }}>
+          {sms.cooldown > 0 ? `${sms.cooldown}s` : sms.codeSent ? "재요청" : "인증요청"}
+        </button>
+      </div>
+      {sms.codeSent && (
+        <div className="flex gap-2">
+          <input placeholder="인증번호 6자리" maxLength={6} value={sms.codeInput} onChange={e => sms.setCodeInput(onlyDigits(e.target.value))} className={inputCls + " flex-1"} />
+          <button onClick={() => { sms.verify(); if (sms.codeInput === sms.code) onSuccess(findAccountByIdentity(name, phone)); }}
+            className="shrink-0 px-3 py-2.5 rounded-xl text-sm font-medium border-2" style={{ borderColor: "#6C63FF", color: "#6C63FF" }}>확인</button>
+        </div>
+      )}
+      {sms.verifyError && <p className="text-xs text-red-500 flex items-center gap-1"><X className="w-3 h-3" />{sms.verifyError}</p>}
+      <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground justify-center"><ArrowLeft className="w-4 h-4" /> 이전</button>
+    </div>
+  );
+}
+
 export function AuthPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("login");
@@ -85,15 +150,15 @@ export function AuthPage() {
   const [autoLogin, setAutoLogin] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
 
-  // 아이디 찾기 state
-  const [findIdStep, setFindIdStep] = useState<FindIdStep>("input");
-  const [findEmail, setFindEmail] = useState("");
-  const [foundId, setFoundId] = useState("");
-  const findIdVerify = useCodeVerify(findEmail);
+  // 아이디(이메일) 찾기 state
+  const [findIdStep, setFindIdStep] = useState<FindIdStep>("verify");
+  const [foundAccount, setFoundAccount] = useState<Account | null>(null);
 
-  // 비밀번호 재설정 state
+  // 비밀번호 찾기 state
   const [resetStep, setResetStep] = useState<ResetPwStep>("input");
   const [resetEmail, setResetEmail] = useState("");
+  const [resetMethod, setResetMethod] = useState<null | "pass" | "email">(null);
+  const [resetAccount, setResetAccount] = useState<Account | null>(null);
   const [newPw, setNewPw] = useState("");
   const [newPwConfirm, setNewPwConfirm] = useState("");
   const [showNewPw, setShowNewPw] = useState(false);
@@ -113,102 +178,148 @@ export function AuthPage() {
 
   function goBack() {
     setMode("login");
-    setFindIdStep("input");
-    setFindEmail("");
-    setFoundId("");
+    setFindIdStep("verify");
+    setFoundAccount(null);
     setResetStep("input");
     setResetEmail("");
+    setResetMethod(null);
+    setResetAccount(null);
     setNewPw(""); setNewPwConfirm(""); setPwError("");
   }
 
   const inputCls = "w-full px-4 py-2.5 rounded-xl bg-muted border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/60 text-sm";
 
-  // ── 아이디 찾기 ──────────────────────────────────────
+  // ── 아이디(이메일) 찾기 — PASS 본인확인 ──────────────────
   function renderFindId() {
-    if (findIdStep === "input") {
+    if (findIdStep === "verify") {
       return (
         <div className="flex flex-col gap-4">
-          <p className="text-sm text-muted-foreground text-center">가입 시 등록한 이메일로 인증 후<br />아이디를 확인하실 수 있습니다.</p>
-          <div className="flex gap-2">
-            <input type="email" placeholder="가입한 이메일" value={findEmail}
-              onChange={e => setFindEmail(e.target.value)} className={inputCls + " flex-1"} />
-            <button onClick={() => { if (findEmail) { findIdVerify.sendCode(); } }}
-              disabled={!findEmail || findIdVerify.cooldown > 0}
-              className="shrink-0 px-3 py-2.5 rounded-xl text-sm font-medium text-white hover:opacity-90 disabled:opacity-40 flex items-center gap-1" style={{ backgroundColor: "#6C63FF" }}>
-              {findIdVerify.cooldown > 0 ? <><RefreshCw className="w-3.5 h-3.5" />{findIdVerify.cooldown}s</> : findIdVerify.codeSent ? "재발송" : "발송"}
-            </button>
-          </div>
-          {findIdVerify.codeSent && (
-            <div className="flex gap-2">
-              <input type="text" placeholder="인증 코드 6자리" maxLength={6} value={findIdVerify.codeInput}
-                onChange={e => findIdVerify.setCodeInput(e.target.value.replace(/\D/g, ""))}
-                className={inputCls + " flex-1"} />
-              <button onClick={() => {
-                findIdVerify.verify();
-                if (findIdVerify.codeInput === findIdVerify.code || true) {
-                  // mock: show masked id
-                  setFoundId("kim****@kakao.com");
-                  setFindIdStep("result");
-                }
-              }} className="shrink-0 px-3 py-2.5 rounded-xl text-sm font-medium border-2 hover:bg-gray-50" style={{ borderColor: "#6C63FF", color: "#6C63FF" }}>확인</button>
-            </div>
-          )}
-          {findIdVerify.verifyError && <p className="text-xs text-red-500 flex items-center gap-1"><X className="w-3 h-3" />{findIdVerify.verifyError}</p>}
-          <button type="button" onClick={goBack} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground justify-center">
-            <ArrowLeft className="w-4 h-4" /> 로그인으로
-          </button>
+          <p className="text-sm text-muted-foreground text-center">본인 명의 휴대폰으로 PASS 인증 후<br />가입하신 이메일을 확인할 수 있어요.</p>
+          <PassVerifyPanel inputCls={inputCls} onBack={goBack} onSuccess={(acct) => { setFoundAccount(acct); setFindIdStep("result"); }} />
         </div>
       );
     }
-    if (findIdStep === "result") {
+    if (findIdStep === "result" && foundAccount) {
+      const sns = SNS_BUTTONS.find(b => b.id === foundAccount.provider);
       return (
         <div className="flex flex-col gap-4 text-center">
           <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center mx-auto">
             <ShieldCheck className="w-7 h-7" style={{ color: "#6C63FF" }} />
           </div>
-          <p className="text-sm text-muted-foreground">인증이 완료되었습니다.<br />회원님의 아이디는 다음과 같습니다.</p>
+          <p className="text-sm text-muted-foreground">본인확인이 완료되었습니다.<br />가입하신 이메일은 다음과 같습니다.</p>
           <div className="bg-gray-50 border border-gray-200 rounded-xl py-4 px-6">
-            <p className="font-bold text-lg text-gray-900">{foundId}</p>
-            <p className="text-xs text-gray-400 mt-1">가입일: 2026-03-15</p>
+            <p className="font-bold text-lg text-gray-900">{maskEmail(foundAccount.email)}</p>
+            <p className="text-xs text-gray-400 mt-1">가입경로: {providerLabel(foundAccount.provider)} · 가입일: {foundAccount.joinedAt}</p>
           </div>
+          {foundAccount.provider !== "email" && (
+            <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-700">
+              {providerLabel(foundAccount.provider)}(으)로 가입된 계정입니다. 소셜 로그인을 이용하세요.
+            </div>
+          )}
+          {foundAccount.provider !== "email" && sns && (
+            <button onClick={() => { setAuthed(true); navigate("/"); }}
+              className="flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-sm font-medium" style={{ background: sns.bg, color: sns.text }}>
+              {sns.logo}{sns.label}
+            </button>
+          )}
           <button onClick={goBack} className="w-full py-3 rounded-xl text-white font-semibold hover:opacity-90" style={{ backgroundColor: "#6C63FF" }}>로그인하기</button>
-          <button onClick={() => setMode("resetPw")} className="text-sm text-gray-500 hover:text-gray-800">비밀번호 재설정하기</button>
+          {foundAccount.provider === "email" && (
+            <button onClick={() => { setMode("resetPw"); setResetStep("input"); setResetMethod(null); }} className="text-sm text-gray-500 hover:text-gray-800">비밀번호 찾기</button>
+          )}
         </div>
       );
     }
     return null;
   }
 
-  // ── 비밀번호 재설정 ───────────────────────────────────
+  // ── 비밀번호 찾기 (이메일 → SNS분기 → PASS/이메일 → 재설정) ──
   function renderResetPw() {
     if (resetStep === "input") {
       return (
         <div className="flex flex-col gap-4">
-          <p className="text-sm text-muted-foreground text-center">가입 시 등록한 이메일로 인증 코드를 발송합니다.</p>
-          <div className="flex gap-2">
-            <input type="email" placeholder="가입한 이메일" value={resetEmail}
-              onChange={e => setResetEmail(e.target.value)} className={inputCls + " flex-1"} />
-            <button onClick={() => { if (resetEmail) resetVerify.sendCode(); }}
-              disabled={!resetEmail || resetVerify.cooldown > 0}
-              className="shrink-0 px-3 py-2.5 rounded-xl text-sm font-medium text-white hover:opacity-90 disabled:opacity-40 flex items-center gap-1" style={{ backgroundColor: "#6C63FF" }}>
-              {resetVerify.cooldown > 0 ? <><RefreshCw className="w-3.5 h-3.5" />{resetVerify.cooldown}s</> : resetVerify.codeSent ? "재발송" : "발송"}
-            </button>
-          </div>
-          {resetVerify.codeSent && (
-            <>
-              <div className="flex gap-2">
-                <input type="text" placeholder="인증 코드 6자리" maxLength={6} value={resetVerify.codeInput}
-                  onChange={e => resetVerify.setCodeInput(e.target.value.replace(/\D/g, ""))}
-                  className={`${inputCls} flex-1 ${resetVerify.verifyError ? "border-red-400" : ""}`} />
-                <button onClick={() => { resetVerify.verify(); if (resetVerify.codeInput === resetVerify.code) setResetStep("newpw"); }}
-                  className="shrink-0 px-3 py-2.5 rounded-xl text-sm font-medium border-2 hover:bg-gray-50" style={{ borderColor: "#6C63FF", color: "#6C63FF" }}>확인</button>
-              </div>
-              {resetVerify.verifyError && <p className="text-xs text-red-500 flex items-center gap-1"><X className="w-3 h-3" />{resetVerify.verifyError}</p>}
-            </>
-          )}
+          <p className="text-sm text-muted-foreground text-center">가입한 이메일(아이디)을 입력하세요.</p>
+          <input type="email" placeholder="가입한 이메일" value={resetEmail}
+            onChange={e => setResetEmail(e.target.value)} className={inputCls} />
+          <button onClick={() => {
+            if (!resetEmail.trim()) return;
+            const acct = findAccountByEmail(resetEmail);
+            setResetAccount(acct);
+            if (acct.provider !== "email") setResetStep("sns");
+            else { setResetStep("method"); setResetMethod(null); }
+          }} disabled={!resetEmail.trim()}
+            className="w-full py-3 rounded-xl text-white font-semibold hover:opacity-90 disabled:opacity-40" style={{ backgroundColor: "#6C63FF" }}>
+            다음
+          </button>
           <button type="button" onClick={goBack} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground justify-center">
             <ArrowLeft className="w-4 h-4" /> 로그인으로
           </button>
+        </div>
+      );
+    }
+    if (resetStep === "sns" && resetAccount) {
+      const sns = SNS_BUTTONS.find(b => b.id === resetAccount.provider);
+      return (
+        <div className="flex flex-col gap-4 text-center">
+          <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm text-amber-700">
+            이 계정은 {providerLabel(resetAccount.provider)}(으)로 가입되어 있어 비밀번호가 없습니다.<br />{providerLabel(resetAccount.provider)} 로그인을 이용하세요.
+          </div>
+          {sns && (
+            <button onClick={() => { setAuthed(true); navigate("/"); }}
+              className="flex items-center justify-center gap-2.5 py-2.5 rounded-xl text-sm font-medium" style={{ background: sns.bg, color: sns.text }}>
+              {sns.logo}{sns.label}
+            </button>
+          )}
+          <button onClick={() => setResetStep("input")} className="text-sm text-gray-500 hover:text-gray-800">다른 이메일로 다시 찾기</button>
+        </div>
+      );
+    }
+    if (resetStep === "method") {
+      return (
+        <div className="flex flex-col gap-4">
+          <div className="rounded-xl bg-gray-50 border border-gray-200 px-4 py-2.5 text-sm text-gray-600">{resetEmail}</div>
+          {resetMethod === null && (
+            <>
+              <p className="text-sm text-muted-foreground text-center">본인확인 방법을 선택하세요.</p>
+              <button onClick={() => setResetMethod("pass")}
+                className="w-full py-3 rounded-xl text-white font-semibold hover:opacity-90 flex items-center justify-center gap-2" style={{ backgroundColor: "#6C63FF" }}>
+                <ShieldCheck className="w-4 h-4" />PASS 본인인증
+              </button>
+              <button onClick={() => setResetMethod("email")}
+                className="w-full py-3 rounded-xl border-2 font-semibold hover:bg-gray-50 flex items-center justify-center gap-2" style={{ borderColor: "#6C63FF", color: "#6C63FF" }}>
+                <Mail className="w-4 h-4" />이메일로 인증
+              </button>
+              <button type="button" onClick={goBack} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground justify-center">
+                <ArrowLeft className="w-4 h-4" /> 로그인으로
+              </button>
+            </>
+          )}
+          {resetMethod === "pass" && (
+            <PassVerifyPanel inputCls={inputCls} onBack={() => setResetMethod(null)} onSuccess={() => setResetStep("newpw")} />
+          )}
+          {resetMethod === "email" && (
+            <>
+              <div className="flex gap-2">
+                <input type="email" value={resetEmail} readOnly className={inputCls + " flex-1 opacity-70"} />
+                <button onClick={() => resetVerify.sendCode()} disabled={resetVerify.cooldown > 0}
+                  className="shrink-0 px-3 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-40 flex items-center gap-1" style={{ backgroundColor: "#6C63FF" }}>
+                  {resetVerify.cooldown > 0 ? <><RefreshCw className="w-3.5 h-3.5" />{resetVerify.cooldown}s</> : resetVerify.codeSent ? "재발송" : "발송"}
+                </button>
+              </div>
+              {resetVerify.codeSent && (
+                <div className="flex gap-2">
+                  <input type="text" placeholder="인증 코드 6자리" maxLength={6} value={resetVerify.codeInput}
+                    onChange={e => resetVerify.setCodeInput(e.target.value.replace(/\D/g, ""))}
+                    className={`${inputCls} flex-1 ${resetVerify.verifyError ? "border-red-400" : ""}`} />
+                  <button onClick={() => { resetVerify.verify(); if (resetVerify.codeInput === resetVerify.code) setResetStep("newpw"); }}
+                    className="shrink-0 px-3 py-2.5 rounded-xl text-sm font-medium border-2 hover:bg-gray-50" style={{ borderColor: "#6C63FF", color: "#6C63FF" }}>확인</button>
+                </div>
+              )}
+              {resetVerify.verifyError && <p className="text-xs text-red-500 flex items-center gap-1"><X className="w-3 h-3" />{resetVerify.verifyError}</p>}
+              <button type="button" onClick={() => setResetMethod(null)} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground justify-center">
+                <ArrowLeft className="w-4 h-4" /> 이전
+              </button>
+            </>
+          )}
         </div>
       );
     }
@@ -216,7 +327,7 @@ export function AuthPage() {
       return (
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />이메일 인증 완료. 새 비밀번호를 설정해주세요.
+            <CheckCircle2 className="w-4 h-4 shrink-0" />본인확인 완료. 새 비밀번호를 설정해주세요.
           </div>
           <div className="relative">
             <input type={showNewPw ? "text" : "password"} placeholder="새 비밀번호 (8자 이상)" value={newPw}
@@ -269,7 +380,7 @@ export function AuthPage() {
   const modeTitle: Record<Mode, string> = {
     login: "로그인",
     findId: "아이디 찾기",
-    resetPw: "비밀번호 재설정",
+    resetPw: "비밀번호 찾기",
     face: "Face ID 로그인",
   };
 
@@ -329,9 +440,9 @@ export function AuthPage() {
               </form>
 
               <div className="flex items-center justify-center gap-3 text-sm mb-5">
-                <button onClick={() => { setMode("findId"); setFindIdStep("input"); }} className="text-muted-foreground hover:text-foreground transition-colors">아이디 찾기</button>
+                <button onClick={() => { setMode("findId"); setFindIdStep("verify"); setFoundAccount(null); }} className="text-muted-foreground hover:text-foreground transition-colors">아이디 찾기</button>
                 <span className="text-border">|</span>
-                <button onClick={() => { setMode("resetPw"); setResetStep("input"); }} className="text-muted-foreground hover:text-foreground transition-colors">비밀번호 찾기</button>
+                <button onClick={() => { setMode("resetPw"); setResetStep("input"); setResetMethod(null); }} className="text-muted-foreground hover:text-foreground transition-colors">비밀번호 찾기</button>
                 <span className="text-border">|</span>
                 <button onClick={() => navigate("/signup")} className="text-primary hover:text-indigo-600 font-medium transition-colors">회원가입</button>
               </div>
