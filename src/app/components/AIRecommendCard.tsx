@@ -65,9 +65,9 @@ export function AIRecommendCard({ variant }: { variant: Variant }) {
             <Gauge className="w-3 h-3" />레벨테스트 {LEVEL_TEST.label} · {LEVEL_TEST.score}점
           </span>
         </div>
-        <button onClick={() => navigate("/mypage?tab=career")}
+        <button onClick={() => navigate("/resume")}
           className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors">
-          <SlidersHorizontal className="w-3.5 h-3.5" />기본 정보 수정
+          <SlidersHorizontal className="w-3.5 h-3.5" />이력서 작성하기
         </button>
       </div>
 

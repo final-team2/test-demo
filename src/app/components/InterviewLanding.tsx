@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router";
 import { AIRecommendCard } from "./AIRecommendCard";
-import { isAuthed, isCareerSet } from "../auth";
+import { isAuthed, isResumeComplete } from "../auth";
 import {
   BrainCircuit, CheckCircle2, Star, Play, Clock, Users,
   Mic, Video, FileText, BarChart3, Shield, Zap, ChevronRight,
@@ -87,7 +87,7 @@ export function InterviewLanding() {
 
   function handleSelectPlan(planId: string) {
     if (!isAuthed()) { navigate("/auth"); return; } // 비로그인 시 로그인 창으로
-    if (!isCareerSet()) { navigate("/mypage?tab=career"); return; } // 맞춤 진로 미설정 시
+    if (!isResumeComplete()) { navigate("/resume"); return; } // 이력서 필수 미작성 시
     navigate("/interview/payment", { state: { planId } });
   }
 

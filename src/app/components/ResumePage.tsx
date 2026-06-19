@@ -1,11 +1,12 @@
 import { useState, useRef } from "react";
 import {
-  Sparkles, Plus, Trash2, History, Shield, CheckCircle2,
+  Sparkles, Plus, Trash2, History, CheckCircle2,
   Eye, Download, X, Save, RotateCcw, ChevronRight,
   FileText, User, GraduationCap, Briefcase, Code2, AlignLeft,
   Clock, AlertCircle, Copy, Check, Award
 } from "lucide-react";
 import jsPDF from "jspdf";
+import { setResumeComplete } from "../auth";
 
 // ─── Types ────────────────────────────────────────────────
 interface Education {
@@ -29,7 +30,15 @@ interface ResumeData {
   certifications: Certification[];
   skills: string[];
   coverText: string;
+  careerNone?: boolean;
+  skillsNone?: boolean;
 }
+
+// 필수 항목(기본정보·경력·스킬) 충족 여부 — '없음' 선택도 충족으로 인정
+const isRequiredFilled = (r: ResumeData) =>
+  !!r.basic.name?.trim() && !!(r.basic.email?.trim() || r.basic.phone?.trim())
+  && ((r.careers?.length ?? 0) > 0 || !!r.careerNone)
+  && ((r.skills?.length ?? 0) > 0 || !!r.skillsNone);
 interface ResumeVersion {
   id: string;
   label: string;
@@ -41,7 +50,7 @@ interface ResumeVersion {
 // ─── Initial data ─────────────────────────────────────────
 const INITIAL_RESUME: ResumeData = {
   id: "r1",
-  name: "카카오 지원용",
+  name: "학습용 이력서",
   basic: { name: "김지수", email: "jisu@example.com", phone: "010-1234-5678", address: "서울 강남구", github: "github.com/jisu-kim", portfolio: "" },
   educations: [{ school: "한국대학교", major: "컴퓨터공학과", grade: "3.8/4.5", period: "2020.03 ~ 2026.02" }],
   careers: [{ company: "(주)스타트업A", role: "프론트엔드 인턴", period: "2025.07 ~ 2025.12", desc: "React 기반 대시보드 개발 및 유지보수", employmentType: "인턴", team: "웹서비스팀", current: false }],
@@ -49,16 +58,6 @@ const INITIAL_RESUME: ResumeData = {
   skills: ["React", "TypeScript", "Next.js", "Tailwind CSS", "Node.js"],
   coverText: "React와 TypeScript를 주력으로 사용하며, 사용자 경험을 최우선으로 생각하는 프론트엔드 개발자입니다.",
 };
-
-const CONSENT_ITEMS = [
-  { id: "name", label: "이름", type: "필수" },
-  { id: "contact", label: "연락처", type: "필수" },
-  { id: "edu", label: "학력", type: "필수" },
-  { id: "career", label: "경력", type: "필수" },
-  { id: "photo", label: "사진", type: "선택" },
-  { id: "portfolio", label: "포트폴리오", type: "선택" },
-  { id: "github", label: "깃허브 링크", type: "선택" },
-];
 
 // ─── Mock AI responses ────────────────────────────────────
 const AI_SUGGESTIONS: Record<string, (data: ResumeData) => Partial<ResumeData>> = {
@@ -84,12 +83,12 @@ const AI_SUGGESTIONS: Record<string, (data: ResumeData) => Partial<ResumeData>> 
 
 type Section = "basic" | "edu" | "career" | "cert" | "skills" | "cover";
 
-const SECTIONS: { id: Section; label: string; icon: React.ElementType }[] = [
-  { id: "basic", label: "기본 정보", icon: User },
+const SECTIONS: { id: Section; label: string; icon: React.ElementType; required?: boolean }[] = [
+  { id: "basic", label: "기본 정보", icon: User, required: true },
   { id: "edu", label: "학력", icon: GraduationCap },
-  { id: "career", label: "경력", icon: Briefcase },
+  { id: "career", label: "경력", icon: Briefcase, required: true },
   { id: "cert", label: "자격증", icon: Award },
-  { id: "skills", label: "스킬", icon: Code2 },
+  { id: "skills", label: "스킬", icon: Code2, required: true },
   { id: "cover", label: "자기소개서", icon: AlignLeft },
 ];
 
@@ -225,6 +224,44 @@ function AiSuggestionPanel({
 
   const sectionLabel = SECTIONS.find(s => s.id === section)?.label ?? "";
 
+  // TODO(AI연동): 실서비스에선 EXAONE가 직무·회사 맥락으로 자소서 카테고리/예시를 안내. 프로토타입은 정적 가이드.
+  if (section === "cover") {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="rounded-2xl border border-border bg-card w-full max-w-lg shadow-2xl">
+          <div className="flex items-center justify-between p-5 border-b border-border">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              <span className="font-semibold text-foreground">AI 자소서 가이드 — 자기소개서</span>
+            </div>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary"><X className="w-4 h-4 text-muted-foreground" /></button>
+          </div>
+          <div className="p-5 space-y-4">
+            <p className="text-sm text-muted-foreground">자기소개서는 자유 서술입니다. 아래 기본 카테고리를 참고해 작성해보세요.</p>
+            <div className="flex flex-col gap-2">
+              {[
+                ["성장 과정", "가치관·성격이 형성된 배경을 간단히"],
+                ["지원 동기", "회사·직무에 지원한 이유와 관심"],
+                ["직무 역량·강점", "보유 기술·경험으로 기여할 수 있는 점"],
+                ["협업·문제해결 경험", "팀에서 갈등·문제를 해결한 사례(STAR)"],
+                ["입사 후 포부", "입사 후 성장 목표와 기여 계획"],
+              ].map(([t, d]) => (
+                <div key={t} className="rounded-xl border border-border bg-secondary p-3">
+                  <div className="text-sm font-medium text-foreground">{t}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">{d}</div>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-foreground leading-relaxed">
+              지원하려는 회사의 자소서 양식(추가 질문)이 있다면 공고 상세에서 확인해 그 항목에 맞춰 작성하세요. 양식이 없으면 위 기본 카테고리를 참고하세요.
+            </div>
+            <button onClick={onClose} className="w-full py-2.5 rounded-xl border border-border text-sm text-foreground hover:bg-secondary">닫기</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="rounded-2xl border border-border bg-card w-full max-w-lg shadow-2xl">
@@ -334,11 +371,10 @@ export function ResumePage() {
   });
   const [activeSection, setActiveSection] = useState<Section>("basic");
   const [showHistory, setShowHistory] = useState(false);
-  const [showConsent, setShowConsent] = useState(false);
   const [aiPanel, setAiPanel] = useState<Section | null>(null);
-  const [optConsent, setOptConsent] = useState<Record<string, boolean>>({ photo: false, portfolio: true, github: true });
   const [skillInput, setSkillInput] = useState("");
   const [savedMsg, setSavedMsg] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [previewVersion, setPreviewVersion] = useState<ResumeVersion | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -354,6 +390,13 @@ export function ResumePage() {
   };
 
   const saveVersion = () => {
+    if (!isRequiredFilled(resume)) {
+      setSavedMsg(false);
+      setSaveError("필수 항목(기본정보·경력·스킬)을 작성해야 저장할 수 있습니다.");
+      setTimeout(() => setSaveError(""), 3000);
+      return;
+    }
+    setSaveError("");
     const now = new Date();
     const label = `v${(versions[activeId]?.length ?? 0) + 1} — ${resume.name}`;
     const ver: ResumeVersion = {
@@ -364,6 +407,7 @@ export function ResumePage() {
       data: { ...resume, educations: [...resume.educations], careers: [...resume.careers], certifications: [...resume.certifications], skills: [...resume.skills] },
     };
     setVersions(v => ({ ...v, [activeId]: [...(v[activeId] ?? []), ver] }));
+    setResumeComplete(true); // 필수 충족 저장 → 교육·면접 게이트 통과
     setSavedMsg(true);
     setTimeout(() => setSavedMsg(false), 2000);
   };
@@ -401,23 +445,32 @@ export function ResumePage() {
   };
 
   const thisVersions = versions[activeId] ?? [];
+  const aiLabel = activeSection === "cover" ? "AI 자소서 가이드" : "AI 자동 완성";
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
+      {/* 저장 안내 토스트 */}
+      {saveError && (
+        <div className="fixed top-6 right-6 z-[100] bg-white border border-red-200 rounded-xl shadow-lg px-4 py-3 flex items-center gap-2 text-sm text-red-600">
+          <AlertCircle className="w-4 h-4" />{saveError}
+        </div>
+      )}
+      {savedMsg && (
+        <div className="fixed top-6 right-6 z-[100] bg-white border border-green-200 rounded-xl shadow-lg px-4 py-3 flex items-center gap-2 text-sm text-green-700">
+          <CheckCircle2 className="w-4 h-4" />이력서가 저장되었습니다.
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground">이력서</h1>
-          <p className="text-sm text-muted-foreground mt-1">AI가 자동 완성을 도와드립니다</p>
+          <p className="text-sm text-muted-foreground mt-1">필수 항목(기본정보·경력·스킬)을 작성하고 저장하면 교육·모의면접을 이용할 수 있어요.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button onClick={() => setShowHistory(!showHistory)}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border bg-secondary text-sm text-foreground hover:bg-muted transition-colors">
             <History className="w-4 h-4" />히스토리 {thisVersions.length > 0 && <span className="text-xs text-primary font-medium">({thisVersions.length})</span>}
-          </button>
-          <button onClick={() => setShowConsent(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border bg-secondary text-sm text-foreground hover:bg-muted transition-colors">
-            <Shield className="w-4 h-4" />공개 설정
           </button>
           <button
             onClick={() => generatePDF(resume)}
@@ -514,7 +567,7 @@ export function ResumePage() {
           {SECTIONS.map(s => (
             <button key={s.id} onClick={() => setActiveSection(s.id)}
               className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-left transition-colors whitespace-nowrap ${activeSection === s.id ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary"}`}>
-              <s.icon className="w-3.5 h-3.5 shrink-0" />{s.label}
+              <s.icon className="w-3.5 h-3.5 shrink-0" />{s.label}{s.required && <span className="text-red-500 ml-0.5">*</span>}
             </button>
           ))}
 
@@ -523,7 +576,7 @@ export function ResumePage() {
               onClick={() => setAiPanel(activeSection)}
               className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary/5 border border-primary/20 text-primary text-sm hover:bg-primary/10 transition-colors"
             >
-              <Sparkles className="w-3.5 h-3.5" />AI 자동 완성
+              <Sparkles className="w-3.5 h-3.5" />{aiLabel}
             </button>
           </div>
         </div>
@@ -534,14 +587,14 @@ export function ResumePage() {
           <div className="flex items-center justify-between mb-5 lg:hidden">
             <h2 className="font-semibold text-foreground">{SECTIONS.find(s => s.id === activeSection)?.label}</h2>
             <button onClick={() => setAiPanel(activeSection)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors">
-              <Sparkles className="w-3.5 h-3.5" />AI 자동 완성
+              <Sparkles className="w-3.5 h-3.5" />{aiLabel}
             </button>
           </div>
 
           {/* Basic info */}
           {activeSection === "basic" && (
             <div className="flex flex-col gap-4">
-              <h2 className="font-semibold text-foreground hidden lg:block">기본 정보</h2>
+              <h2 className="font-semibold text-foreground hidden lg:block">기본 정보<span className="text-red-500 ml-0.5">*</span></h2>
               <div className="grid grid-cols-2 gap-4">
                 {[
                   { key: "name", label: "이름", type: "text", span: false },
@@ -603,12 +656,26 @@ export function ResumePage() {
           {activeSection === "career" && (
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
-                <h2 className="font-semibold text-foreground hidden lg:block">경력</h2>
-                <button onClick={() => updateResume({ careers: [...resume.careers, { company: "", role: "", period: "", desc: "", employmentType: "정규직", team: "", current: false }] })}
-                  className="flex items-center gap-1 text-sm text-primary hover:text-indigo-600"><Plus className="w-4 h-4" />추가</button>
+                <h2 className="font-semibold text-foreground hidden lg:block">경력<span className="text-red-500 ml-0.5">*</span></h2>
+                {!resume.careerNone && (
+                  <button onClick={() => updateResume({ careers: [...resume.careers, { company: "", role: "", period: "", desc: "", employmentType: "정규직", team: "", current: false }] })}
+                    className="flex items-center gap-1 text-sm text-primary hover:text-indigo-600"><Plus className="w-4 h-4" />추가</button>
+                )}
               </div>
+              <label className="flex items-center gap-2 cursor-pointer self-start">
+                <button type="button"
+                  onClick={() => updateResume(resume.careerNone ? { careerNone: false } : { careerNone: true, careers: [] })}
+                  className={`w-9 h-5 rounded-full transition-colors relative ${resume.careerNone ? "bg-primary" : "bg-border"}`}>
+                  <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${resume.careerNone ? "left-4" : "left-0.5"}`} />
+                </button>
+                <span className="text-xs text-foreground">경력 없음 (신입)</span>
+              </label>
+              {resume.careerNone ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">경력 없음(신입)으로 표시됩니다.</p>
+              ) : (
+              <>
               {resume.careers.length === 0 && (
-                <p className="text-sm text-muted-foreground py-4 text-center">경력을 추가해주세요. 신입이라면 프로젝트 경험을 입력하세요.</p>
+                <p className="text-sm text-muted-foreground py-4 text-center">경력을 추가하거나 ‘경력 없음’을 선택하세요.</p>
               )}
               {resume.careers.map((career, i) => (
                 <div key={i} className="rounded-xl bg-secondary border border-border p-4 flex flex-col gap-3">
@@ -681,6 +748,8 @@ export function ResumePage() {
                   </button>
                 </div>
               ))}
+              </>
+              )}
             </div>
           )}
 
@@ -721,28 +790,42 @@ export function ResumePage() {
           {/* Skills */}
           {activeSection === "skills" && (
             <div className="flex flex-col gap-4">
-              <h2 className="font-semibold text-foreground hidden lg:block">기술 스택</h2>
-              <div className="flex flex-wrap gap-2 min-h-12">
-                {resume.skills.map(s => (
-                  <div key={s} className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm">
-                    {s}
-                    <button onClick={() => updateResume({ skills: resume.skills.filter(x => x !== s) })} className="ml-1 hover:text-indigo-800">×</button>
-                  </div>
-                ))}
-                {resume.skills.length === 0 && <p className="text-sm text-muted-foreground self-center">기술 스택을 추가해주세요.</p>}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  value={skillInput}
-                  onChange={e => setSkillInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter" && skillInput.trim()) { updateResume({ skills: [...resume.skills, skillInput.trim()] }); setSkillInput(""); } }}
-                  placeholder="스킬 입력 후 Enter"
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-secondary border border-border text-foreground text-sm focus:outline-none focus:border-primary/60 placeholder:text-muted-foreground"
-                />
-                <button
-                  onClick={() => { if (skillInput.trim()) { updateResume({ skills: [...resume.skills, skillInput.trim()] }); setSkillInput(""); } }}
-                  className="px-4 py-2.5 rounded-xl bg-primary text-white text-sm hover:bg-indigo-600">추가</button>
-              </div>
+              <h2 className="font-semibold text-foreground hidden lg:block">기술 스택<span className="text-red-500 ml-0.5">*</span></h2>
+              <label className="flex items-center gap-2 cursor-pointer self-start">
+                <button type="button"
+                  onClick={() => updateResume(resume.skillsNone ? { skillsNone: false } : { skillsNone: true, skills: [] })}
+                  className={`w-9 h-5 rounded-full transition-colors relative ${resume.skillsNone ? "bg-primary" : "bg-border"}`}>
+                  <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${resume.skillsNone ? "left-4" : "left-0.5"}`} />
+                </button>
+                <span className="text-xs text-foreground">보유 스킬 없음</span>
+              </label>
+              {resume.skillsNone ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">보유 스킬 없음으로 표시됩니다.</p>
+              ) : (
+              <>
+                <div className="flex flex-wrap gap-2 min-h-12">
+                  {resume.skills.map(s => (
+                    <div key={s} className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm">
+                      {s}
+                      <button onClick={() => updateResume({ skills: resume.skills.filter(x => x !== s) })} className="ml-1 hover:text-indigo-800">×</button>
+                    </div>
+                  ))}
+                  {resume.skills.length === 0 && <p className="text-sm text-muted-foreground self-center">기술 스택을 추가하거나 ‘보유 스킬 없음’을 선택하세요.</p>}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    value={skillInput}
+                    onChange={e => setSkillInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter" && skillInput.trim()) { updateResume({ skills: [...resume.skills, skillInput.trim()] }); setSkillInput(""); } }}
+                    placeholder="스킬 입력 후 Enter"
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-secondary border border-border text-foreground text-sm focus:outline-none focus:border-primary/60 placeholder:text-muted-foreground"
+                  />
+                  <button
+                    onClick={() => { if (skillInput.trim()) { updateResume({ skills: [...resume.skills, skillInput.trim()] }); setSkillInput(""); } }}
+                    className="px-4 py-2.5 rounded-xl bg-primary text-white text-sm hover:bg-indigo-600">추가</button>
+                </div>
+              </>
+              )}
             </div>
           )}
 
@@ -766,7 +849,7 @@ export function ResumePage() {
           <div className="flex items-center justify-between mt-6 pt-5 border-t border-border">
             <button onClick={() => setAiPanel(activeSection)}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-primary/20 bg-primary/5 text-primary text-sm hover:bg-primary/10 transition-colors">
-              <Sparkles className="w-3.5 h-3.5" />AI 자동 완성
+              <Sparkles className="w-3.5 h-3.5" />{aiLabel}
             </button>
             <button onClick={saveVersion}
               className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-primary text-white text-sm hover:bg-indigo-600 transition-colors">
@@ -784,51 +867,6 @@ export function ResumePage() {
           onApply={applyAI}
           onClose={() => setAiPanel(null)}
         />
-      )}
-
-      {/* Consent modal */}
-      {showConsent && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="rounded-2xl border border-border bg-card p-6 w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-primary" />
-                <h3 className="font-semibold text-foreground">정보 공개 동의 설정</h3>
-              </div>
-              <button onClick={() => setShowConsent(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
-            </div>
-            <p className="text-xs text-muted-foreground mb-4">기업 측에 공개할 이력서 항목을 설정합니다. 필수 항목은 동의 없이 공개됩니다.</p>
-            <div className="flex flex-col gap-3 mb-6">
-              {CONSENT_ITEMS.map(item => {
-                const isRequired = item.type === "필수";
-                const checked = isRequired || optConsent[item.id];
-                return (
-                  <div key={item.id} className="flex items-center justify-between py-1">
-                    <div className="flex items-center gap-2.5">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isRequired ? "bg-primary/10 text-primary border border-primary/20" : "bg-secondary border border-border text-muted-foreground"}`}>
-                        {item.type}
-                      </span>
-                      <span className="text-sm text-foreground">{item.label}</span>
-                    </div>
-                    {isRequired ? (
-                      <CheckCircle2 className="w-4 h-4 text-primary" />
-                    ) : (
-                      <button
-                        onClick={() => setOptConsent(c => ({ ...c, [item.id]: !c[item.id] }))}
-                        className={`w-10 h-6 rounded-full transition-colors relative ${optConsent[item.id] ? "bg-primary" : "bg-border"}`}
-                      >
-                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${optConsent[item.id] ? "left-5" : "left-1"}`} />
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <button onClick={() => setShowConsent(false)} className="w-full py-2.5 rounded-xl bg-primary text-white text-sm hover:bg-indigo-600 transition-colors">
-              저장
-            </button>
-          </div>
-        </div>
       )}
 
       {/* Version preview modal */}

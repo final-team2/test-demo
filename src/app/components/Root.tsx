@@ -51,7 +51,6 @@ const NAV_MAIN = [
     dropdown: [
       { label: "이력서 작성", href: "/resume" },
       { label: "히스토리", href: "/resume?tab=history" },
-      { label: "공개 설정", href: "/resume?tab=settings" },
     ]
   },
   {

@@ -3,14 +3,13 @@ import { useLocation, useNavigate } from "react-router";
 import {
   Eye, EyeOff, CheckCircle2, CreditCard, History, FileText, User,
   ChevronDown, ChevronUp, Briefcase, Clock, ChevronRight,
-  Camera, TrendingUp, AlertCircle, RotateCcw, X,
-  Plus, GraduationCap, Award, Target
+  Camera, AlertCircle, RotateCcw,
+  GraduationCap, Award, Target
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   RadarChart, PolarGrid, PolarAngleAxis, Radar
 } from "recharts";
-import { getCareer, saveCareer } from "../auth";
 import { EDUCATION_GOALS, CHECKLIST, getDoneMap, toggleDone, completionRate, goalProgress, achievementHistory } from "../data/checklist";
 
 // ─── Data ────────────────────────────────────────────────────────────────────
@@ -97,17 +96,12 @@ const LEARNING_COURSES = [
 const TABS = [
   { id: "evaluation", label: "학습 종합 평가", icon: Award },
   { id: "goals", label: "교육 목표", icon: Target },
-  { id: "career", label: "맞춤 진로 변경", icon: TrendingUp },
   { id: "profile", label: "기본 정보", icon: User },
   { id: "applications", label: "지원 내역", icon: Briefcase },
   { id: "resume", label: "내 이력서", icon: FileText },
   { id: "interview", label: "면접 히스토리", icon: History },
   { id: "payment", label: "결제 정보", icon: CreditCard },
 ];
-
-const CAREER_ROLES = ["프론트엔드", "백엔드", "풀스택", "AI/ML", "DevOps", "데이터"];
-const CAREER_PURPOSES = ["실무 역량 강화", "취업 준비", "이직 준비", "기초 다지기"];
-const CAREER_LANGS = ["JavaScript", "TypeScript", "React", "Java", "Spring", "Python", "Go", "Kotlin"];
 
 // ─── Sub-views ───────────────────────────────────────────────────────────────
 
@@ -667,118 +661,6 @@ function PaymentTab() {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-type Exp = { tech: string; years: number; months: number };
-
-function CareerTab() {
-  const initial = getCareer(); // 저장된 진로 정보(없으면 기본값)
-  const [role, setRole] = useState(initial.role);
-  const [purpose, setPurpose] = useState(initial.purpose);
-  // 직군과 분리된 '기술별 경력' (예: React 1년, Java 3년 6개월, Python 5년)
-  const [exps, setExps] = useState<Exp[]>(initial.exps);
-  const [langs, setLangs] = useState<string[]>(initial.langs);
-  const [saved, setSaved] = useState(false);
-
-  const toggleLang = (l: string) => setLangs(p => p.includes(l) ? p.filter(x => x !== l) : [...p, l]);
-  const updateExp = (i: number, field: keyof Exp, value: string | number) =>
-    setExps(p => p.map((e, idx) => idx === i ? { ...e, [field]: value } : e));
-  const addExp = () => setExps(p => [...p, { tech: "", years: 0, months: 0 }]);
-  const removeExp = (i: number) => setExps(p => p.filter((_, idx) => idx !== i));
-
-  const selectCls = "w-full px-3 py-2.5 rounded-xl bg-secondary border border-border text-sm text-foreground focus:outline-none focus:border-primary/60";
-  const fmtExp = (e: Exp) => `${e.tech} ${e.years}년${e.months ? ` ${e.months}개월` : ""}`;
-  const expSummary = exps.filter(e => e.tech.trim()).map(fmtExp).join(", ");
-
-  return (
-    <div className="rounded-2xl border border-border bg-card p-6">
-      <h2 className="font-semibold text-foreground mb-1">맞춤 진로 변경</h2>
-      <p className="text-sm text-muted-foreground mb-5">기본 베이스 정보를 수정하면 교육·공고·면접의 AI 추천이 이 정보를 기준으로 갱신됩니다.</p>
-
-      {/* 직군 / 교육 목적 (각각 따로 선택) */}
-      <div className="grid sm:grid-cols-2 gap-3 mb-5">
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">취업/교육 희망 직군</label>
-          <select value={role} onChange={e => setRole(e.target.value)} className={selectCls}>
-            {CAREER_ROLES.map(o => <option key={o}>{o}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">교육 목적</label>
-          <select value={purpose} onChange={e => setPurpose(e.target.value)} className={selectCls}>
-            {CAREER_PURPOSES.map(o => <option key={o}>{o}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {/* 기술별 경력 (다중 입력 · 수정/추가/삭제 가능) */}
-      <div className="mb-5">
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-xs text-muted-foreground block">보유 경력 (기술·연차)</label>
-          <button onClick={addExp} className="flex items-center gap-0.5 text-xs text-primary hover:underline">
-            <Plus className="w-3 h-3" />경력 추가
-          </button>
-        </div>
-        <div className="flex flex-col gap-2">
-          {exps.map((e, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <input
-                type="text" value={e.tech} placeholder="기술명 (예: React)"
-                onChange={ev => updateExp(i, "tech", ev.target.value)}
-                className="flex-1 px-3 py-2 rounded-xl bg-secondary border border-border text-sm text-foreground focus:outline-none focus:border-primary/60"
-              />
-              <div className="flex items-center gap-1 shrink-0">
-                <input
-                  type="number" min={0} max={40} value={e.years}
-                  onChange={ev => updateExp(i, "years", Number(ev.target.value))}
-                  className="w-14 px-2 py-2 rounded-xl bg-secondary border border-border text-sm text-foreground text-center focus:outline-none focus:border-primary/60"
-                />
-                <span className="text-sm text-muted-foreground">년</span>
-                <select
-                  value={e.months}
-                  onChange={ev => updateExp(i, "months", Number(ev.target.value))}
-                  className="px-1.5 py-2 rounded-xl bg-secondary border border-border text-sm text-foreground focus:outline-none focus:border-primary/60"
-                >
-                  {Array.from({ length: 12 }, (_, m) => <option key={m} value={m}>{m}</option>)}
-                </select>
-                <span className="text-sm text-muted-foreground">개월</span>
-              </div>
-              <button onClick={() => removeExp(i)} title="삭제"
-                className="p-2 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors shrink-0">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
-          {exps.length === 0 && (
-            <p className="text-xs text-muted-foreground py-2">‘경력 추가’를 눌러 기술별 경력을 입력하세요.</p>
-          )}
-        </div>
-        {expSummary && (
-          <p className="text-xs text-muted-foreground mt-2">입력된 경력: <span className="text-foreground">{expSummary}</span></p>
-        )}
-      </div>
-
-      <div className="mb-6">
-        <label className="text-xs text-muted-foreground mb-2 block">사용 가능 언어</label>
-        <div className="flex flex-wrap gap-2">
-          {CAREER_LANGS.map(l => (
-            <button key={l} onClick={() => toggleLang(l)}
-              className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${langs.includes(l) ? "bg-primary/10 border-primary text-primary" : "bg-secondary border-border text-muted-foreground hover:text-foreground"}`}>
-              {l}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <button onClick={() => { saveCareer({ role, purpose, exps, langs }); setSaved(true); setTimeout(() => setSaved(false), 1500); }}
-          className="px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-indigo-600 transition-colors">
-          저장하기
-        </button>
-        {saved && <span className="flex items-center gap-1 text-sm text-green-600"><CheckCircle2 className="w-4 h-4" />저장되었습니다</span>}
-      </div>
-    </div>
-  );
-}
-
 function GoalsTab() {
   const navigate = useNavigate();
   const [doneMap, setDoneMap] = useState(getDoneMap);
@@ -1084,14 +966,8 @@ export function MyPage() {
         </div>
 
         <div className="lg:col-span-3">
-          {tab === "evaluation" && (
-            <div className="flex flex-col gap-6">
-              <EvaluationTab />
-              <CareerTab />
-            </div>
-          )}
+          {tab === "evaluation" && <EvaluationTab />}
           {tab === "goals" && <GoalsTab />}
-          {tab === "career" && <CareerTab />}
           {tab === "profile" && <ProfileTab />}
           {tab === "applications" && <ApplicationsTab />}
           {tab === "resume" && <ResumeHistoryTab />}
