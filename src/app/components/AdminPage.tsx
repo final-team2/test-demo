@@ -5,7 +5,7 @@ import {
   PieChart, Pie, Cell
 } from "recharts";
 import {
-  Users, Shield, Building2, Briefcase, AlertTriangle, Bell, BookOpen, Star, Bot,
+  Users, Shield, Briefcase, AlertTriangle, Bell, BookOpen, Star, Bot,
   Plus, Trash2, Edit2, Search, Send, ArrowLeft, Save, ToggleLeft, ToggleRight,
   CheckCircle2, XCircle, LayoutDashboard, Eye, UserX, Download, FileText
 } from "lucide-react";
@@ -18,7 +18,6 @@ const MENU_ITEMS = [
   { id: "dashboard", label: "대시보드", icon: LayoutDashboard },
   { id: "domain-header", label: "DOMAIN", isHeader: true },
   { id: "users", label: "회원 관리", icon: Users },
-  { id: "companies", label: "기업 관리", icon: Building2 },
   { id: "jobs", label: "공고 관리", icon: Briefcase },
   { id: "resumes", label: "이력서 관리", icon: FileText },
   { id: "reports", label: "게시판 관리", icon: AlertTriangle },
@@ -614,109 +613,25 @@ const INIT_COMPANIES: CompanyRow[] = [
   { id: 4, name: "라인플러스", contact: "최담당", email: "hr@linecorp.com", jobs: 3, status: "반려" },
 ];
 
-function CompaniesSection() {
-  const [companies, setCompanies] = useState<CompanyRow[]>(INIT_COMPANIES);
-  const [search, setSearch] = useState("");
-  const [rejectTarget, setRejectTarget] = useState<CompanyRow | null>(null);
-  const [rejectReason, setRejectReason] = useState("");
-  const [toast, setToast] = useState("");
-
-  const showMsg = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
-
-  const filtered = companies.filter(c => c.name.includes(search));
-
-  return (
-    <div>
-      <Toast msg={toast} />
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">기업 관리</h1>
-          <p className="text-sm text-muted-foreground">기업 등록 승인 및 상태 관리</p>
-        </div>
-        <button onClick={() => csvDownload("companies.csv", [
-          ["회사명","담당자","이메일","공고수","상태"],
-          ...companies.map(c => [c.name, c.contact, c.email, String(c.jobs), c.status])
-        ])} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-secondary text-foreground hover:bg-secondary/80 text-sm border border-border transition-colors">
-          <Download className="w-4 h-4" />문서 다운
-        </button>
-      </div>
-
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="회사명 검색..."
-          className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-white border border-border text-sm focus:outline-none focus:border-primary/60" />
-      </div>
-
-      <div className="rounded-2xl border border-border bg-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-secondary">
-              <tr>
-                <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">회사명 / 담당자</th>
-                <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">공고수</th>
-                <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">등록상태</th>
-                <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">작업</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filtered.map(c => (
-                <tr key={c.id} className="hover:bg-secondary/50 transition-colors">
-                  <td className="px-5 py-4">
-                    <div className="text-sm font-medium text-foreground">{c.name}</div>
-                    <div className="text-xs text-muted-foreground">{c.contact} · {c.email}</div>
-                  </td>
-                  <td className="px-5 py-4 text-sm text-foreground">{c.jobs}건</td>
-                  <td className="px-5 py-4"><StatusBadge status={c.status} /></td>
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-1.5">
-                      {c.status === "대기" && (
-                        <>
-                          <button onClick={() => { setCompanies(prev => prev.map(x => x.id === c.id ? {...x, status: "승인"} : x)); showMsg(`${c.name} 승인 완료`); }}
-                            className="px-2.5 py-1 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 text-xs transition-colors">승인</button>
-                          <button onClick={() => { setRejectTarget(c); setRejectReason(""); }}
-                            className="px-2.5 py-1 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 text-xs transition-colors">반려</button>
-                        </>
-                      )}
-                      {(c.status === "승인" || c.status === "반려") && (
-                        <button onClick={() => setCompanies(prev => prev.map(x => x.id === c.id ? {...x, status: x.status === "비활성" ? "승인" : "비활성"} : x))}
-                          className="px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 text-xs transition-colors">비활성화</button>
-                      )}
-                      {c.status === "비활성" && (
-                        <button onClick={() => setCompanies(prev => prev.map(x => x.id === c.id ? {...x, status: "승인"} : x))}
-                          className="px-2.5 py-1 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 text-xs transition-colors">활성화</button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {rejectTarget && (
-        <Modal title="반려 사유 입력" onClose={() => setRejectTarget(null)}>
-          <p className="text-sm text-foreground"><span className="font-semibold">{rejectTarget.name}</span>의 등록을 반려합니다.</p>
-          <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} rows={4} placeholder="반려 사유를 입력하세요..."
-            className={inputCls()} />
-          <div className="flex gap-2">
-            <button onClick={() => setRejectTarget(null)} className="flex-1 py-2.5 rounded-xl border border-border text-sm">취소</button>
-            <button onClick={() => {
-              if (!rejectReason.trim()) return;
-              setCompanies(prev => prev.map(x => x.id === rejectTarget.id ? {...x, status: "반려"} : x));
-              showMsg(`${rejectTarget.name} 반려 처리되었습니다.`);
-              setRejectTarget(null);
-            }} className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition-colors">반려 확인</button>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
 // ─── Jobs (A-005) ─────────────────────────────────────────────────────────────
 
-type JobRow = { id: number; company: string; title: string; status: "대기"|"승인"|"반려"|"삭제"; applicants: number; deadline: string; };
+type JobRow = {
+  id: number; company: string; title: string;
+  status: "대기"|"승인"|"반려"|"삭제"; applicants: number; deadline: string;
+  // ── 신규(공고 작성) ──
+  location?: string;     // 위치
+  type?: string;         // 경력/신입
+  salary?: string;       // 급여
+  applyStart?: string;   // 지원 시작일 YYYY-MM-DD
+  applyEnd?: string;     // 지원 마감일 YYYY-MM-DD (deadline과 동기화)
+  education?: string;    // 자격요건(학력)
+  category?: string;     // 업무 기본 카테고리
+  languages?: string[];  // 업무 언어/기술스택
+  field?: string;        // 업무 분야/도메인
+  mainDuties?: string[];                              // [전체/기타사항] 업무 상세
+  preferred?: string[];                               // [전체/기타사항] 우대사항
+  coverLetterQuestions?: { id: string; question: string }[]; // [전체/기타사항] 추가질문
+};
 
 const INIT_JOBS: JobRow[] = [
   { id: 1, company: "카카오", title: "프론트엔드 개발자", status: "승인", applicants: 42, deadline: "2026-06-20" },
@@ -726,20 +641,361 @@ const INIT_JOBS: JobRow[] = [
   { id: 5, company: "쿠팡", title: "AI/ML 엔지니어", status: "반려", applicants: 0, deadline: "2026-06-30" },
 ];
 
+const JOB_CATEGORIES = ["프론트엔드","백엔드","풀스택","데이터","모바일","AI·ML","DevOps","기타"];
+const JOB_TYPES = ["신입","경력","신입·경력 무관"];
+const JOB_EDUCATIONS = ["무관","고졸 이상","초대졸 이상","대졸 이상","석사 이상"];
+const JOB_FIELDS = ["웹서비스","핀테크","커머스","플랫폼","AI","게임","기타"];
+
+// TODO(AI연동): 실서비스에선 EXAONE 서버(POST /interview/generate 또는 신규 /job/recommend)에
+// category·languages·field·경력·학력을 보내 추천을 받음. 프로토타입이라 아래 mock으로 대체.
+function recommendJobContent(input: {
+  category: string; languages: string[]; field: string; type: string; education: string;
+}): { mainDuties: string[]; preferred: string[]; coverLetterQuestions: { id: string; question: string }[] } {
+  const langs = input.languages.map(l => l.toLowerCase());
+  const has = (k: string) => langs.some(l => l.includes(k));
+  const duties: string[] = [];
+  const preferred: string[] = [];
+  const questions: string[] = [];
+
+  switch (input.category) {
+    case "프론트엔드":
+      duties.push("React 기반 컴포넌트 설계 및 UI 구현", "렌더링 성능 최적화 및 번들 사이즈 관리", "웹 접근성(WCAG)·반응형 UI 대응");
+      preferred.push("Next.js SSR/SSG 경험", "디자인 시스템 구축 경험", "Core Web Vitals 최적화 경험");
+      questions.push("최근 진행한 프론트엔드 성능 최적화 경험을 설명해 주세요.", "컴포넌트 재사용성을 높이기 위한 본인만의 설계 원칙은?");
+      break;
+    case "백엔드":
+      duties.push("RESTful API 설계 및 서버 로직 구현", "데이터베이스 모델링 및 쿼리 최적화", "트래픽 대응을 위한 캐싱·확장 전략 수립");
+      preferred.push("대용량 트래픽 처리 경험", "MSA 설계·운영 경험", "Redis 캐싱 전략 경험");
+      questions.push("N+1 문제를 경험하고 해결한 사례를 설명해 주세요.", "트랜잭션 격리 수준을 실제로 고려한 경험이 있나요?");
+      break;
+    case "데이터":
+      duties.push("데이터 파이프라인 설계 및 ETL 구축", "데이터 품질 모니터링 및 정합성 관리", "분석용 데이터 마트 설계");
+      preferred.push("Airflow 워크플로우 관리 경험", "대규모 배치/스트리밍 처리 경험", "데이터 레이크하우스 이해");
+      questions.push("데이터 파이프라인 장애를 대응한 경험을 설명해 주세요.", "데이터 품질을 보장하기 위한 본인의 방법은?");
+      break;
+    case "모바일":
+      duties.push("네이티브/크로스플랫폼 앱 기능 개발", "앱 성능·메모리 최적화", "스토어 배포 및 버전 관리");
+      preferred.push("CI/CD(Fastlane) 경험", "오프라인 캐싱 전략 경험", "접근성 대응 경험");
+      questions.push("앱 출시 후 크래시를 줄이기 위해 한 노력을 설명해 주세요.", "앱 아키텍처를 선택한 기준은 무엇인가요?");
+      break;
+    case "AI·ML":
+      duties.push("모델 학습·평가 파이프라인 구축", "데이터 전처리 및 피처 엔지니어링", "모델 서빙 및 성능 모니터링");
+      preferred.push("LLM 파인튜닝·프롬프트 엔지니어링 경험", "MLOps 파이프라인 구축 경험", "분산 학습 경험");
+      questions.push("모델 성능을 개선한 가장 효과적인 시도를 설명해 주세요.", "오프라인 지표와 실서비스 지표가 달랐던 경험이 있나요?");
+      break;
+    case "DevOps":
+      duties.push("CI/CD 파이프라인 구축 및 운영", "쿠버네티스 기반 인프라 관리", "모니터링·알림 체계 구성");
+      preferred.push("IaC(Terraform) 경험", "멀티클라우드 운영 경험", "인프라 비용 최적화 경험");
+      questions.push("장애 대응 자동화를 구축한 경험을 설명해 주세요.", "인프라 비용을 절감한 구체적 사례가 있나요?");
+      break;
+    default: // 풀스택·기타
+      duties.push("프론트엔드·백엔드 기능 통합 개발", "API 설계 및 서비스 아키텍처 개선", "기능 단위 배포 및 운영");
+      preferred.push("클라우드 인프라 운영 경험", "실시간 기능(WebSocket) 구현 경험", "테스트 자동화 경험");
+      questions.push("가장 어려웠던 풀스택 프로젝트 경험을 설명해 주세요.", "프론트와 백엔드 사이 인터페이스를 설계한 방식은?");
+  }
+
+  // 언어/기술스택 기반 보강
+  if (has("java") || has("spring")) { duties.push("Spring Boot 기반 백엔드 서비스 개발"); preferred.push("JPA/QueryDSL 활용 경험"); }
+  if (has("react") || has("typescript")) preferred.push("React + TypeScript 대규모 프로젝트 경험");
+  if (has("python")) duties.push("Python 기반 데이터 처리·자동화 스크립트 작성");
+  if (has("kotlin") || has("swift")) preferred.push("네이티브 모바일 개발 경험");
+  if (has("aws") || has("docker") || has("kubernetes")) preferred.push("컨테이너·클라우드 인프라 운영 경험");
+
+  // 분야·경력 기반 질문 보강
+  if (input.field && input.field !== "기타") questions.push(`${input.field} 도메인에 관심을 갖게 된 계기를 설명해 주세요.`);
+  if (input.type === "신입") questions.push("학습한 내용을 실무에 적용해 본 프로젝트가 있나요?");
+  else if (input.type === "경력") questions.push("이전 회사에서 주도적으로 개선한 성과를 수치로 설명해 주세요.");
+
+  const uniq = (arr: string[]) => Array.from(new Set(arr));
+  return {
+    mainDuties: uniq(duties).slice(0, 4),
+    preferred: uniq(preferred).slice(0, 4),
+    coverLetterQuestions: uniq(questions).slice(0, 4).map((q, i) => ({ id: `q${Date.now()}_${i}`, question: q })),
+  };
+}
+
 function JobsSection() {
   const [jobs, setJobs] = useState<JobRow[]>(INIT_JOBS);
   const [tab, setTab] = useState("전체");
+  const [view, setView] = useState<"list"|"form">("list");
+  const [editing, setEditing] = useState<JobRow|null>(null);
+  const [step, setStep] = useState<1|2>(1);
+  const [toast, setToast] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [langInput, setLangInput] = useState("");
+
+  const showMsg = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
 
   const tabs = ["전체","대기","승인","반려"];
   const filtered = tab === "전체" ? jobs : jobs.filter(j => j.status === tab);
 
+  const blankForm = {
+    title: "", company: "", location: "", type: JOB_TYPES[0], salary: "",
+    applyStart: "", applyEnd: "", education: JOB_EDUCATIONS[0],
+    category: JOB_CATEGORIES[0], languages: [] as string[], field: JOB_FIELDS[0],
+    mainDuties: [] as string[], preferred: [] as string[],
+    coverLetterQuestions: [] as { id: string; question: string }[],
+  };
+  const [form, setForm] = useState(blankForm);
+
+  const openCreate = () => { setEditing(null); setForm(blankForm); setLangInput(""); setStep(1); setView("form"); };
+  const openEdit = (row: JobRow) => {
+    setEditing(row);
+    setForm({
+      title: row.title, company: row.company, location: row.location ?? "", type: row.type ?? JOB_TYPES[0],
+      salary: row.salary ?? "", applyStart: row.applyStart ?? "", applyEnd: row.applyEnd ?? row.deadline ?? "",
+      education: row.education ?? JOB_EDUCATIONS[0], category: row.category ?? JOB_CATEGORIES[0],
+      languages: row.languages ?? [], field: row.field ?? JOB_FIELDS[0],
+      mainDuties: row.mainDuties ?? [], preferred: row.preferred ?? [],
+      coverLetterQuestions: row.coverLetterQuestions ?? [],
+    });
+    setLangInput(""); setStep(1); setView("form");
+  };
+
+  const addLang = () => {
+    const v = langInput.trim();
+    if (!v) return;
+    if (!form.languages.includes(v)) setForm(f => ({ ...f, languages: [...f.languages, v] }));
+    setLangInput("");
+  };
+  const removeLang = (l: string) => setForm(f => ({ ...f, languages: f.languages.filter(x => x !== l) }));
+
+  const addLine = (key: "mainDuties"|"preferred") => setForm(f => ({ ...f, [key]: [...f[key], ""] }));
+  const updateLine = (key: "mainDuties"|"preferred", i: number, v: string) =>
+    setForm(f => ({ ...f, [key]: f[key].map((d, idx) => idx === i ? v : d) }));
+  const removeLine = (key: "mainDuties"|"preferred", i: number) =>
+    setForm(f => ({ ...f, [key]: f[key].filter((_, idx) => idx !== i) }));
+
+  const addQ = () => setForm(f => ({ ...f, coverLetterQuestions: [...f.coverLetterQuestions, { id: `q${Date.now()}`, question: "" }] }));
+  const updateQ = (id: string, v: string) => setForm(f => ({ ...f, coverLetterQuestions: f.coverLetterQuestions.map(q => q.id === id ? { ...q, question: v } : q) }));
+  const removeQ = (id: string) => setForm(f => ({ ...f, coverLetterQuestions: f.coverLetterQuestions.filter(q => q.id !== id) }));
+
+  const aiDisabled = !form.category || form.languages.length === 0;
+  const runAI = () => {
+    if (aiDisabled) return;
+    setAiLoading(true);
+    setTimeout(() => {
+      const rec = recommendJobContent({ category: form.category, languages: form.languages, field: form.field, type: form.type, education: form.education });
+      setForm(f => ({ ...f, mainDuties: rec.mainDuties, preferred: rec.preferred, coverLetterQuestions: rec.coverLetterQuestions }));
+      setAiLoading(false);
+      showMsg("AI 추천이 적용되었습니다");
+    }, 1000);
+  };
+
+  const handleSave = () => {
+    const base = {
+      company: form.company, title: form.title, location: form.location, type: form.type,
+      salary: form.salary, applyStart: form.applyStart, applyEnd: form.applyEnd, deadline: form.applyEnd,
+      education: form.education, category: form.category, languages: form.languages, field: form.field,
+      mainDuties: form.mainDuties.map(d => d.trim()).filter(Boolean),
+      preferred: form.preferred.map(p => p.trim()).filter(Boolean),
+      coverLetterQuestions: form.coverLetterQuestions.filter(q => q.question.trim()),
+    };
+    if (editing) {
+      setJobs(prev => prev.map(x => x.id === editing.id ? { ...x, ...base } : x));
+    } else {
+      setJobs(prev => [...prev, { id: Date.now(), status: "대기" as const, applicants: 0, ...base }]);
+    }
+    setView("list");
+    showMsg("공고가 저장되었습니다");
+  };
+
+  const labelCls = "block text-xs font-medium text-muted-foreground mb-1";
+
+  // ── 폼 뷰 (등록/수정) ──
+  if (view === "form") {
+    return (
+      <div>
+        <Toast msg={toast} />
+        <button onClick={() => setView("list")} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4">
+          <ArrowLeft className="w-4 h-4" />목록으로
+        </button>
+        <h1 className="text-3xl font-bold text-foreground mb-4">{editing ? "공고 수정" : "공고 등록"}</h1>
+
+        {/* 단계 인디케이터 */}
+        <div className="flex items-center gap-3 mb-6">
+          {([[1,"기본 정보"],[2,"전체·기타사항"]] as const).map(([n, label]) => (
+            <div key={n} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm ${step === n ? "bg-primary text-white" : "bg-secondary text-muted-foreground"}`}>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${step === n ? "bg-white/20" : "bg-white"}`}>{n}</span>
+              {label}
+            </div>
+          ))}
+        </div>
+
+        {step === 1 && (
+          <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>공고제목</label>
+                <input value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} placeholder="예: 프론트엔드 개발자" className={inputCls()} />
+              </div>
+              <div>
+                <label className={labelCls}>회사명</label>
+                <input value={form.company} onChange={e => setForm(f => ({...f, company: e.target.value}))} placeholder="예: 카카오" className={inputCls()} />
+              </div>
+              <div>
+                <label className={labelCls}>위치</label>
+                <input value={form.location} onChange={e => setForm(f => ({...f, location: e.target.value}))} placeholder="예: 판교" className={inputCls()} />
+              </div>
+              <div>
+                <label className={labelCls}>경력/신입</label>
+                <select value={form.type} onChange={e => setForm(f => ({...f, type: e.target.value}))} className={inputCls()}>
+                  {JOB_TYPES.map(t => <option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>급여</label>
+                <input value={form.salary} onChange={e => setForm(f => ({...f, salary: e.target.value}))} placeholder="협의 또는 5000~7000만" className={inputCls()} />
+              </div>
+              <div>
+                <label className={labelCls}>자격요건(학력)</label>
+                <select value={form.education} onChange={e => setForm(f => ({...f, education: e.target.value}))} className={inputCls()}>
+                  {JOB_EDUCATIONS.map(t => <option key={t}>{t}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className={labelCls}>공고지원 가능 날짜</label>
+              <div className="flex items-center gap-2">
+                <input type="date" value={form.applyStart} onChange={e => setForm(f => ({...f, applyStart: e.target.value}))} className={inputCls()} />
+                <span className="text-muted-foreground text-sm shrink-0">~</span>
+                <input type="date" value={form.applyEnd} onChange={e => setForm(f => ({...f, applyEnd: e.target.value}))} className={inputCls()} />
+              </div>
+            </div>
+
+            {/* 업무 묶음 */}
+            <div className="rounded-xl border border-border bg-secondary/40 p-4 space-y-3">
+              <div className="text-sm font-semibold text-foreground">업무</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>기본 카테고리</label>
+                  <select value={form.category} onChange={e => setForm(f => ({...f, category: e.target.value}))} className={inputCls("bg-background")}>
+                    {JOB_CATEGORIES.map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>분야</label>
+                  <select value={form.field} onChange={e => setForm(f => ({...f, field: e.target.value}))} className={inputCls("bg-background")}>
+                    {JOB_FIELDS.map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className={labelCls}>언어/기술스택</label>
+                <div className="flex items-center gap-2">
+                  <input value={langInput} onChange={e => setLangInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addLang(); } }}
+                    placeholder="예: React 입력 후 Enter 또는 추가" className={inputCls("bg-background")} />
+                  <button onClick={addLang} className="shrink-0 px-3 py-2.5 rounded-xl bg-primary text-white text-sm hover:bg-indigo-600 transition-colors">추가</button>
+                </div>
+                {form.languages.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {form.languages.map(l => (
+                      <span key={l} className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs">
+                        {l}
+                        <button onClick={() => removeLang(l)} className="hover:text-indigo-800"><XCircle className="w-3 h-3" /></button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button onClick={() => setStep(2)} className="px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-indigo-600 transition-colors">다음 →</button>
+            </div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
+            {/* AI 자동 추천 */}
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-foreground flex items-center gap-1.5"><Bot className="w-4 h-4 text-primary" />AI 자동 추천</div>
+                <p className="text-xs text-muted-foreground mt-0.5">{aiDisabled ? "업무 카테고리·언어를 먼저 입력하세요." : "기본 정보를 바탕으로 업무·우대·추가질문을 추천합니다."}</p>
+              </div>
+              <button onClick={runAI} disabled={aiDisabled || aiLoading}
+                className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-medium hover:bg-indigo-600 transition-colors disabled:opacity-40">
+                {aiLoading ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />분석 중…</> : <><Bot className="w-4 h-4" />AI 자동 추천</>}
+              </button>
+            </div>
+            {aiLoading && <p className="text-xs text-primary">AI가 공고 정보를 분석 중…</p>}
+
+            {/* 업무 상세 */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className={labelCls}>업무 상세</label>
+                <button onClick={() => addLine("mainDuties")} className="text-xs text-primary hover:underline flex items-center gap-0.5"><Plus className="w-3 h-3" />추가</button>
+              </div>
+              <div className="space-y-2">
+                {form.mainDuties.map((d, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input value={d} onChange={e => updateLine("mainDuties", i, e.target.value)} placeholder="업무 내용" className={inputCls()} />
+                    <button onClick={() => removeLine("mainDuties", i)} className="shrink-0 p-2 rounded-lg text-muted-foreground hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                ))}
+                {form.mainDuties.length === 0 && <p className="text-xs text-muted-foreground">‘추가’ 또는 ‘AI 자동 추천’으로 업무를 입력하세요.</p>}
+              </div>
+            </div>
+
+            {/* 우대사항 */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className={labelCls}>우대사항</label>
+                <button onClick={() => addLine("preferred")} className="text-xs text-primary hover:underline flex items-center gap-0.5"><Plus className="w-3 h-3" />추가</button>
+              </div>
+              <div className="space-y-2">
+                {form.preferred.map((p, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input value={p} onChange={e => updateLine("preferred", i, e.target.value)} placeholder="우대사항" className={inputCls()} />
+                    <button onClick={() => removeLine("preferred", i)} className="shrink-0 p-2 rounded-lg text-muted-foreground hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                ))}
+                {form.preferred.length === 0 && <p className="text-xs text-muted-foreground">우대사항을 입력하세요.</p>}
+              </div>
+            </div>
+
+            {/* 추가질문 */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className={labelCls}>지원서 추가질문</label>
+                <button onClick={addQ} className="text-xs text-primary hover:underline flex items-center gap-0.5"><Plus className="w-3 h-3" />추가</button>
+              </div>
+              <div className="space-y-2">
+                {form.coverLetterQuestions.map(q => (
+                  <div key={q.id} className="flex items-center gap-2">
+                    <input value={q.question} onChange={e => updateQ(q.id, e.target.value)} placeholder="질문 내용" className={inputCls()} />
+                    <button onClick={() => removeQ(q.id)} className="shrink-0 p-2 rounded-lg text-muted-foreground hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                ))}
+                {form.coverLetterQuestions.length === 0 && <p className="text-xs text-muted-foreground">추가질문을 입력하세요.</p>}
+              </div>
+            </div>
+
+            <div className="flex justify-between pt-2">
+              <button onClick={() => setStep(1)} className="px-5 py-2.5 rounded-xl border border-border text-sm">← 이전</button>
+              <button onClick={handleSave} className="px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-indigo-600 transition-colors flex items-center gap-1.5"><Save className="w-4 h-4" />저장</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── 목록 뷰 ──
   return (
     <div>
+      <Toast msg={toast} />
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2">공고 관리</h1>
           <p className="text-sm text-muted-foreground">채용 공고 승인 및 관리</p>
         </div>
+        <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white hover:bg-indigo-600 transition-colors">
+          <Plus className="w-4 h-4" />공고 등록
+        </button>
       </div>
 
       <div className="flex gap-1 mb-4">
@@ -774,6 +1030,7 @@ function JobsSection() {
                   <td className="px-5 py-4"><StatusBadge status={j.status} /></td>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-1.5">
+                      <button onClick={() => openEdit(j)} className="px-2.5 py-1 rounded-lg bg-secondary text-foreground hover:bg-secondary/70 text-xs transition-colors flex items-center gap-1"><Edit2 className="w-3 h-3" />수정</button>
                       {j.status === "대기" && (
                         <>
                           <button onClick={() => setJobs(prev => prev.map(x => x.id === j.id ? {...x, status: "승인"} : x))}
@@ -1669,7 +1926,6 @@ export function AdminPage() {
         <div className="max-w-7xl mx-auto p-8">
           {activeMenu === "dashboard" && <DashboardSection />}
           {activeMenu === "users" && <UsersSection />}
-          {activeMenu === "companies" && <CompaniesSection />}
           {activeMenu === "jobs" && <JobsSection />}
           {activeMenu === "resumes" && <ResumeReview embedded />}
           {activeMenu === "reports" && <ReportsSection />}
