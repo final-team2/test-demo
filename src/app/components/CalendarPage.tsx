@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { ChevronLeft, ChevronRight, Bell, BellOff, MapPin, Clock, ChevronRight as Arrow, AlertTriangle, Info, GraduationCap } from "lucide-react";
+import { completedOnDate, achievementHistory, completionRate } from "../data/checklist";
 
 // saved: true = 찜 목록(1순위), false = AI 추천(2순위)
 const JOB_EVENTS = [
@@ -233,6 +234,8 @@ export function CalendarPage() {
                   const dayEvents = events.filter(e => e.start <= dateStr && e.end >= dateStr);
                   const hasDead = events.some(e => e.end === dateStr);
                   const days = hasDead ? daysUntil(dateStr) : null;
+                  // 교육 캘린더: 해당 날짜에 달성한 체크리스트
+                  const dayChecks = calType === "edu" ? completedOnDate(dateStr) : [];
 
                   return (
                     <div
@@ -259,8 +262,11 @@ export function CalendarPage() {
                           </span>
                         )}
                       </div>
-                      {/* 일정 점 표시 */}
+                      {/* 일정 점 표시 + 체크리스트 달성 마커 */}
                       <div className="flex flex-wrap items-center gap-1 px-1.5 pb-1.5 mt-auto">
+                        {dayChecks.length > 0 && (
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-green-700 bg-green-100 rounded-full px-1 py-0.5 leading-none">✓{dayChecks.length}</span>
+                        )}
                         {dayEvents.slice(0, 4).map(e => (
                           <span key={e.id} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: e.color }} />
                         ))}
@@ -269,18 +275,28 @@ export function CalendarPage() {
                         )}
                       </div>
 
-                      {/* 호버 툴팁: 해당 날짜 일정 내용 */}
-                      {dayEvents.length > 0 && (
+                      {/* 호버 툴팁: 해당 날짜 일정 내용 + 체크리스트 달성 */}
+                      {(dayEvents.length > 0 || dayChecks.length > 0) && (
                         <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-1 z-40 hidden group-hover:block w-48 rounded-lg border border-border bg-white p-2.5 text-left shadow-lg">
-                          <div className="text-[11px] font-semibold text-foreground mb-1.5">{month + 1}월 {day}일 · {dayEvents.length}건</div>
-                          <div className="flex flex-col gap-1">
-                            {dayEvents.map(e => (
-                              <div key={e.id} className="flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: e.color }} />
-                                <span className="text-[11px] text-foreground truncate">{e.company} · {e.title}</span>
-                              </div>
-                            ))}
-                          </div>
+                          <div className="text-[11px] font-semibold text-foreground mb-1.5">{month + 1}월 {day}일{dayEvents.length > 0 ? ` · ${dayEvents.length}건` : ""}</div>
+                          {dayEvents.length > 0 && (
+                            <div className="flex flex-col gap-1">
+                              {dayEvents.map(e => (
+                                <div key={e.id} className="flex items-center gap-1.5">
+                                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: e.color }} />
+                                  <span className="text-[11px] text-foreground truncate">{e.company} · {e.title}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {dayChecks.length > 0 && (
+                            <div className={`flex flex-col gap-0.5 ${dayEvents.length > 0 ? "mt-1.5 pt-1.5 border-t border-border" : ""}`}>
+                              <span className="text-[10px] font-medium text-green-600">✅ 체크리스트 달성</span>
+                              {dayChecks.map(c => (
+                                <span key={c.id} className="text-[11px] text-foreground truncate">· {c.title}</span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -293,6 +309,40 @@ export function CalendarPage() {
 
         {/* Sidebar */}
         <div className="flex flex-col gap-4">
+          {/* 체크리스트 달성 현황 — 교육 캘린더에서만 */}
+          {calType === "edu" && (
+            <div className="rounded-2xl border border-border bg-card p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-foreground text-sm">체크리스트 달성 현황</h3>
+                <button onClick={() => navigate("/mypage?tab=goals")} className="text-xs text-primary hover:underline flex items-center gap-0.5">
+                  교육 목표 관리 <Arrow className="w-3 h-3" />
+                </button>
+              </div>
+              <div className="rounded-xl bg-secondary p-3 mb-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-muted-foreground">전체 달성률</span>
+                  <span className="text-sm font-bold" style={{ color: "#10B981" }}>{completionRate()}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-card overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${completionRate()}%`, background: "linear-gradient(90deg,#10B981,#34D399)" }} />
+                </div>
+              </div>
+              {achievementHistory().length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">아직 달성한 항목이 없습니다.</p>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {achievementHistory().slice(0, 4).map(h => (
+                    <div key={h.id} className="flex items-center gap-2 text-xs">
+                      <span className="text-green-600 shrink-0">✓</span>
+                      <span className="text-foreground flex-1 truncate">{h.title}</span>
+                      <span className="text-[11px] text-muted-foreground shrink-0">{h.date}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* 학습 진행도 (교육센터 연동) — 교육 캘린더에서만 표시 */}
           {calType === "edu" && (
           <div className="rounded-2xl border border-border bg-card p-5">

@@ -11,6 +11,7 @@ import {
   RadarChart, PolarGrid, PolarAngleAxis, Radar
 } from "recharts";
 import { getCareer, saveCareer } from "../auth";
+import { EDUCATION_GOALS, CHECKLIST, getDoneMap, toggleDone, completionRate, goalProgress, achievementHistory } from "../data/checklist";
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -87,14 +88,15 @@ const APPLICATION_HISTORY = [
 
 // 교육센터 학습 진행도 mock (EducationPage / CalendarPage와 동일 값)
 const LEARNING_COURSES = [
-  { title: "알고리즘 기초 완성", done: 28, total: 42, color: "#6366F1" },
-  { title: "React & TypeScript 심화", done: 29, total: 36, color: "#F59E0B" },
-  { title: "네트워크 & HTTP", done: 11, total: 24, color: "#3B82F6" },
-  { title: "Spring Boot & JPA", done: 5, total: 30, color: "#EC4899" },
+  { title: "알고리즘 기초 완성", done: 28, total: 42, accuracy: 82, color: "#6366F1" },
+  { title: "React & TypeScript 심화", done: 29, total: 36, accuracy: 88, color: "#F59E0B" },
+  { title: "네트워크 & HTTP", done: 11, total: 24, accuracy: 75, color: "#3B82F6" },
+  { title: "Spring Boot & JPA", done: 5, total: 30, accuracy: 69, color: "#EC4899" },
 ];
 
 const TABS = [
   { id: "evaluation", label: "학습 종합 평가", icon: Award },
+  { id: "goals", label: "교육 목표", icon: Target },
   { id: "career", label: "맞춤 진로 변경", icon: TrendingUp },
   { id: "profile", label: "기본 정보", icon: User },
   { id: "applications", label: "지원 내역", icon: Briefcase },
@@ -777,6 +779,137 @@ function CareerTab() {
   );
 }
 
+function GoalsTab() {
+  const navigate = useNavigate();
+  const [doneMap, setDoneMap] = useState(getDoneMap);
+  const handleToggle = (id: string) => { toggleDone(id); setDoneMap(getDoneMap()); };
+
+  const overall = completionRate();
+  const history = achievementHistory();
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* 교육 목표 + 전체 달성률 */}
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Target className="w-5 h-5 text-primary" />
+          <h2 className="font-semibold text-foreground">교육 목표</h2>
+          <span className="text-xs text-muted-foreground ml-1">목표별 체크리스트 달성 현황</span>
+        </div>
+        <div className="rounded-xl bg-secondary p-4 mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-muted-foreground">전체 달성률</span>
+            <span className="text-lg font-bold text-primary">{overall}%</span>
+          </div>
+          <div className="h-2.5 rounded-full bg-card overflow-hidden">
+            <div className="h-full rounded-full" style={{ width: `${overall}%`, background: "linear-gradient(90deg,#6C63FF,#8B5CF6)" }} />
+          </div>
+        </div>
+        <div className="grid sm:grid-cols-3 gap-3">
+          {EDUCATION_GOALS.map(g => {
+            const p = goalProgress(g.id);
+            return (
+              <div key={g.id} className="rounded-xl border border-border p-4">
+                <div className="font-medium text-sm text-foreground mb-0.5">{g.title}</div>
+                {g.desc && <p className="text-xs text-muted-foreground mb-2 leading-relaxed">{g.desc}</p>}
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-muted-foreground">{p.done}/{p.total}</span>
+                  <span className="text-xs font-semibold text-foreground">{p.pct}%</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                  <div className="h-full rounded-full bg-primary" style={{ width: `${p.pct}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 체크리스트 */}
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold text-foreground">체크리스트</h2>
+          <button onClick={() => navigate("/calendar?type=edu")} className="text-xs text-primary hover:underline flex items-center gap-0.5">
+            교육 캘린더 <ChevronRight className="w-3 h-3" />
+          </button>
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">체크한 항목은 교육 캘린더(교육 일정)의 완료일에 표시됩니다.</p>
+        <div className="flex flex-col gap-5">
+          {EDUCATION_GOALS.map(g => {
+            const items = CHECKLIST.filter(c => c.goalId === g.id);
+            return (
+              <div key={g.id}>
+                <div className="text-xs font-semibold text-muted-foreground mb-2">{g.title}</div>
+                <div className="flex flex-col gap-1.5">
+                  {items.map(c => {
+                    const checked = c.id in doneMap;
+                    return (
+                      <button key={c.id} onClick={() => handleToggle(c.id)}
+                        className="flex items-center gap-2.5 p-2 -mx-2 rounded-lg hover:bg-secondary text-left transition-colors">
+                        {checked
+                          ? <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                          : <div className="w-5 h-5 rounded-full border-2 border-border shrink-0" />}
+                        <span className={`text-sm ${checked ? "line-through text-muted-foreground" : "text-foreground"}`}>{c.title}</span>
+                        {checked && <span className="ml-auto text-[11px] text-muted-foreground shrink-0">{doneMap[c.id]}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 수강 강의 목록 (정확도) */}
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <GraduationCap className="w-4 h-4 text-primary" />
+          <h2 className="font-semibold text-foreground">수강 강의 목록</h2>
+          <span className="text-xs text-muted-foreground ml-1">지금까지 수강한 강의·정확도</span>
+        </div>
+        <div className="flex flex-col gap-4">
+          {LEARNING_COURSES.map(c => {
+            const pct = Math.round((c.done / c.total) * 100);
+            return (
+              <div key={c.title} className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm text-foreground truncate">{c.title}</span>
+                    <span className="text-[11px] text-muted-foreground shrink-0 ml-2">{c.done}/{c.total} · {pct}%</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: c.color }} />
+                  </div>
+                </div>
+                <span className="shrink-0 px-2 py-1 rounded-full text-xs font-medium bg-secondary text-foreground">정확도 {c.accuracy}%</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 체크리스트 달성 히스토리 */}
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <h2 className="font-semibold text-foreground mb-4">체크리스트 달성 히스토리</h2>
+        {history.length === 0 ? (
+          <p className="text-sm text-muted-foreground">아직 달성한 항목이 없습니다.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {history.map(h => (
+              <div key={h.id} className="flex items-center gap-2.5 text-sm">
+                <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                <span className="text-foreground flex-1">{h.title}</span>
+                <span className="text-xs text-muted-foreground shrink-0">{h.date}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function EvaluationTab() {
   const navigate = useNavigate();
 
@@ -957,6 +1090,7 @@ export function MyPage() {
               <CareerTab />
             </div>
           )}
+          {tab === "goals" && <GoalsTab />}
           {tab === "career" && <CareerTab />}
           {tab === "profile" && <ProfileTab />}
           {tab === "applications" && <ApplicationsTab />}
